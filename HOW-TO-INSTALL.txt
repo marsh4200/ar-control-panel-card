@@ -1,0 +1,20 @@
+AR Control Panel dashboard - install (5 minutes, nothing to flash, no new integration)
+
+1. Copy ar-control-panel-card.js into Home Assistant's  config/www  folder
+   (File editor / Samba / Studio Code Server). Create the "www" folder if it isn't there.
+
+2. Settings > Dashboards > three dots (top right) > Resources > Add resource
+     URL:  /local/ar-control-panel-card.js
+     Type: JavaScript module
+   (No "Resources" menu? Turn on Advanced mode in your user profile first.)
+
+3. Settings > Dashboards > Add dashboard > New dashboard from scratch
+     Title: AR Control Panel   Icon: mdi:cellphone-link   Show in sidebar: on
+
+4. Open the new dashboard > pencil (Edit) > three dots > Raw configuration editor,
+   paste everything from dashboard.yaml, Save.
+
+5. Refresh the page / the Home Assistant phone app. Done.
+
+It reads the rooms from the AR NSPanel Pro integration (the updated one with the
+"mobile_layout" command), so the dashboard shows the same rooms as the wall panels.
