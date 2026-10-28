@@ -1,0 +1,6 @@
+{
+  "name": "AR Control Panel",
+  "filename": "ar-control-panel-card.js",
+  "render_readme": true,
+  "homeassistant": "2024.7.0"
+}
