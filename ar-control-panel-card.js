@@ -111,6 +111,40 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .bulb{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);color:rgba(var(--ink-rgb),.5)}
 .on .bulb{background:radial-gradient(circle at 40% 35%,#ffe2b0,var(--acc) 60%,#e89a3c);color:#3a2408;box-shadow:0 0 22px rgba(var(--acc-rgb),.55)}
 .lvl{font-size:13px;font-weight:700;color:rgba(var(--ink-rgb),.66)}
+.lgs{margin-top:14px;display:flex;flex-direction:column;gap:12px}
+.rsec{margin-top:22px}
+.rsec + .rsec{padding-top:18px;border-top:1px solid var(--line)}
+.rsh{display:flex;align-items:center;gap:10px;padding:0 4px}
+.rsh .tap{all:unset;cursor:pointer;flex:1;min-width:0;display:flex;align-items:baseline;gap:10px;-webkit-tap-highlight-color:transparent}
+.rsh .tap:focus-visible{outline:2px solid var(--acc);outline-offset:4px;border-radius:10px}
+.rsh .rn{font-size:20px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rsh .rc{font-size:13px;font-weight:600;color:rgba(var(--ink-rgb),.55);white-space:nowrap}
+.rsh .rc.lit{color:var(--acc)}
+.rsh .chv{align-self:center;margin-left:auto}
+.rsec .lgs,.rsec .grid{margin-top:12px}
+.lgrp{position:relative;overflow:hidden;padding:14px;border-radius:22px;display:flex;flex-direction:column;gap:10px}
+.lgrp.on{background:rgba(40,33,24,.62);border-color:rgba(var(--acc-rgb),.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 0 24px -8px rgba(var(--acc-rgb),.55)}
+.lgh{display:flex;align-items:center;gap:12px}
+.lgh .tap{all:unset;cursor:pointer;flex:1;min-width:0;display:flex;align-items:center;gap:12px;-webkit-tap-highlight-color:transparent}
+.lgh .tap:focus-visible{outline:2px solid var(--acc);outline-offset:4px;border-radius:12px}
+.gt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.gs{font-size:13px;font-weight:600;color:rgba(var(--ink-rgb),.66);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gs b{color:var(--acc);font-weight:700}
+.chv{flex:none;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.07);color:rgba(var(--ink-rgb),.7);transition:transform .2s}
+.chv.open{transform:rotate(180deg)}
+.sw{flex:none;position:relative;width:52px;height:30px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid var(--line);padding:0}
+.sw i{position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#d8d4cc;transition:left .18s}
+.sw.on{background:linear-gradient(145deg,var(--acc),#e89a3c);border-color:transparent}
+.sw.on i{left:25px;background:#fff8ec}
+.lgl{display:flex;flex-direction:column;gap:6px;margin-top:2px;padding-top:10px;border-top:1px solid var(--line)}
+.lrow{padding:8px 10px;border-radius:16px;background:rgba(255,255,255,.04)}
+.lrow.on{background:rgba(var(--acc-rgb),.08)}
+.lrow .tap{all:unset;cursor:pointer;width:100%;display:flex;align-items:center;gap:10px}
+.lrow .bulb{width:32px;height:32px}
+.lrow .nm{flex:1;min-width:0;font-size:14px}
+.lrow input[type=range]{margin-top:2px}
+.lgrp .lrow:not(.on) .bulb{background:rgba(255,255,255,.08);color:rgba(var(--ink-rgb),.5);box-shadow:none}
+.lrow:not(.on) .nm{color:rgba(var(--ink-rgb),.75)}
 .nm{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:0}
 input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:999px;background:linear-gradient(90deg,#c9853a var(--p,0%),rgba(0,0,0,.35) var(--p,0%))}
@@ -208,7 +242,7 @@ input[type=range]:disabled{opacity:.35}
 
 // --- where the rooms come from ---------------------------------------------------------
 const arr = (v) => (Array.isArray(v) ? v : v ? [v] : []).filter((x) => typeof x === "string" && x);
-const blankRoom = (name) => ({ name, lights: [], climate: [], music: [], shades: [], scenes: [], presence: [] });
+const blankRoom = (name) => ({ name, lights: [], climate: [], music: [], shades: [], scenes: [], presence: [], groups: [] });
 const isManual = (cfg) => (cfg.mode ? cfg.mode === "manual" : Array.isArray(cfg.rooms) && cfg.rooms.some((r) => r && typeof r === "object"));
 const friendly = (h, id) => {
   const s = h.states[id];
@@ -219,9 +253,16 @@ const friendly = (h, id) => {
 function manualLayout(h, cfg) {
   const rooms = (cfg.rooms || [])
     .filter((r) => r && typeof r === "object")
-    .map((r, i) => Object.assign(blankRoom(r.name || "Room " + (i + 1)), {
-      lights: arr(r.lights), climate: arr(r.climate), music: arr(r.music), shades: arr(r.shades), scenes: arr(r.scenes),
-    }));
+    .map((r, i) => {
+      // light_groups: [{name, lights}] - shown as one tile that opens into its lights
+      const groups = (Array.isArray(r.light_groups) ? r.light_groups : [])
+        .filter((g) => g && typeof g === "object")
+        .map((g, j) => ({ id: i + ":" + j, name: g.name || "Group " + (j + 1), lights: arr(g.lights) }));
+      return Object.assign(blankRoom(r.name || "Room " + (i + 1)), {
+        lights: uniq(arr(r.lights).concat([].concat.apply([], groups.map((g) => g.lights)))),
+        climate: arr(r.climate), music: arr(r.music), shades: arr(r.shades), scenes: arr(r.scenes), groups,
+      });
+    });
   const security = arr(cfg.security);
   security.sort((a, b) => (b.indexOf("alarm_control_panel.") === 0) - (a.indexOf("alarm_control_panel.") === 0));
   return { rooms, cameras: arr(cfg.cameras), security, utilities: arr(cfg.utilities) };
@@ -427,6 +468,7 @@ class ArControlPanel extends HTMLElement {
     if (p.wholeHouse && rs.length > 1) {
       const all = { name: "Whole house", icon: "home", whole: true };
       ROOM_KEYS.forEach((k) => (all[k] = uniq([].concat.apply([], rs.map((r) => r[k] || [])))));
+      all.groups = [].concat.apply([], rs.map((r) => (r.groups || []).map((g) => Object.assign({}, g, { name: r.name + " · " + g.name }))));
       rs.push(all);
     }
     return rs;
@@ -664,6 +706,19 @@ class ArControlPanel extends HTMLElement {
         break;
       }
       case "toggle": this.call("homeassistant", "toggle", { entity_id: e }); break;
+      case "gopen": {
+        const o = Object.assign({}, this._s.open || {});
+        o[v] = !o[v];
+        this._set({ open: o });
+        break;
+      }
+      case "gtog": {
+        const g = this._groups && this._groups[v];
+        if (!g) break;
+        const anyOn = g.ids.some((x) => this.isOn(x));
+        this.call("homeassistant", anyOn ? "turn_off" : "turn_on", { entity_id: g.entity ? [g.entity] : g.ids });
+        break;
+      }
       case "all": {
         const ids = this.ents(v === "util" ? "utilities" : "lights");
         if (ids.length) this.call("homeassistant", b.getAttribute("data-on") === "1" ? "turn_on" : "turn_off", { entity_id: ids });
@@ -765,7 +820,17 @@ class ArControlPanel extends HTMLElement {
     const e = t.getAttribute("data-e");
     const a = t.getAttribute("data-a");
     const v = Number(t.value);
-    if (a === "bri") this.call("light", v > 0 ? "turn_on" : "turn_off", v > 0 ? { entity_id: e, brightness_pct: v } : { entity_id: e });
+    if (a === "gbri") {
+      const g = this._groups && this._groups[t.getAttribute("data-g")];
+      if (g) {
+        const dims = g.ids.filter((x) => this.dimmable(x));
+        const rest = g.ids.filter((x) => dims.indexOf(x) < 0);
+        if (v > 0) {
+          if (dims.length) this.call("light", "turn_on", { entity_id: dims, brightness_pct: v });
+          if (rest.length) this.call("homeassistant", "turn_on", { entity_id: rest });
+        } else this.call("homeassistant", "turn_off", { entity_id: g.ids });
+      }
+    } else if (a === "bri") this.call("light", v > 0 ? "turn_on" : "turn_off", v > 0 ? { entity_id: e, brightness_pct: v } : { entity_id: e });
     else if (a === "vol") this.call("media_player", "volume_set", { entity_id: e, volume_level: v / 100 });
     else if (a === "pos") this.call("cover", "set_cover_position", { entity_id: e, position: v });
     this._busy = 0;
@@ -862,25 +927,109 @@ class ArControlPanel extends HTMLElement {
     return `<div class="glass hero"><div style="flex:1"><div class="clock">${pad(d.getHours())}:${pad(d.getMinutes())}</div><div class="date">${esc(date)}</div></div>${wx}</div>${sc}<div class="grid">${cards}</div>`;
   }
 
+  dimmable(e) {
+    const s = this.st(e);
+    if (!s || e.indexOf("light.") !== 0) return false;
+    const modes = s.attributes.supported_color_modes || [];
+    return modes.length > 0 && !(modes.length === 1 && modes[0] === "onoff");
+  }
+  pct(e) {
+    const s = this.st(e);
+    return this.isOn(e) ? (s.attributes.brightness != null ? Math.round((s.attributes.brightness / 255) * 100) : 100) : 0;
+  }
+  // Light groups: ones set up in the card (light_groups) plus Home Assistant's
+  // own light groups (a light whose `entity_id` lists its members).
+  lightGroups(es, room) {
+    const r = room || this.room();
+    const out = ((r && r.groups) || []).map((g) => ({ id: g.id, name: g.name, ids: g.lights.filter((e) => this.has(e)) }));
+    es.forEach((e) => {
+      const m = arr(this.st(e).attributes.entity_id).filter((x) => this.has(x) && x !== e);
+      if (e.indexOf("light.") === 0 && m.length) out.push({ id: "ha:" + e, name: this.name(e), ids: m, entity: e });
+    });
+    return out.filter((g) => g.ids.length);
+  }
+
   _lights() {
-    const es = this.ents("lights");
-    const n = es.filter((e) => this.isOn(e)).length;
-    const cards = es
-      .map((e) => {
-        const s = this.st(e);
-        const on = this.isOn(e);
-        const isLight = e.indexOf("light.") === 0;
-        const modes = (s.attributes.supported_color_modes || []);
-        const dim = isLight && !(modes.length === 1 && modes[0] === "onoff") && modes.length > 0;
-        const pct = on ? (s.attributes.brightness != null ? Math.round((s.attributes.brightness / 255) * 100) : 100) : 0;
-        const lvl = s.state === "unavailable" ? "Offline" : on ? (dim ? pct + "%" : "On") : "Off";
-        return `<div class="glass light ${on ? "on" : ""}">${on ? '<div class="glow"></div>' : ""}
+    this._groups = {};
+    const open = this._s.open || {};
+    // One room's lights: its light groups, then the lights on their own.
+    const split = (es, room) => {
+      const groups = this.lightGroups(es, room);
+      const inGroup = new Set();
+      groups.forEach((g) => { this._groups[g.id] = g; g.ids.forEach((e) => inGroup.add(e)); if (g.entity) inGroup.add(g.entity); });
+      const loose = es.filter((e) => !inGroup.has(e));
+      const every = uniq(loose.concat([].concat.apply([], groups.map((g) => g.ids))));
+      return { groups, loose, every };
+    };
+
+    const tile = (e) => {
+      const s = this.st(e);
+      const on = this.isOn(e);
+      const dim = this.dimmable(e);
+      const pct = this.pct(e);
+      const lvl = s.state === "unavailable" ? "Offline" : on ? (dim ? pct + "%" : "On") : "Off";
+      return `<div class="glass light ${on ? "on" : ""}">${on ? '<div class="glow"></div>' : ""}
           <button class="tap" data-a="toggle" data-e="${esc(e)}" aria-pressed="${on}"><span class="bulbrow"><span class="bulb">${svg("bulb", 20)}</span><span class="lvl">${lvl}</span></span><span class="nm">${esc(this.name(e))}</span></button>
           ${dim ? `<input type="range" min="0" max="100" step="1" value="${pct}" data-a="bri" data-e="${esc(e)}" aria-label="${esc(this.name(e))} brightness">` : ""}
         </div>`;
-      })
-      .join("");
-    return `<div class="bar"><div class="lbl">${n} of ${es.length} on</div><button class="act on" data-a="all" data-v="lights" data-on="1">All on</button><button class="act" data-a="all" data-v="lights" data-on="0">All off</button></div><div class="grid">${cards}</div>`;
+    };
+    const row = (e) => {
+      const s = this.st(e);
+      const on = this.isOn(e);
+      const dim = this.dimmable(e);
+      const pct = this.pct(e);
+      const lvl = s.state === "unavailable" ? "Offline" : on ? (dim ? pct + "%" : "On") : "Off";
+      return `<div class="lrow ${on ? "on" : ""}"><button class="tap" data-a="toggle" data-e="${esc(e)}" aria-pressed="${on}"><span class="bulb">${svg("bulb", 16)}</span><span class="nm">${esc(this.name(e))}</span><span class="lvl">${lvl}</span></button>
+        ${dim ? `<input type="range" min="0" max="100" step="1" value="${pct}" data-a="bri" data-e="${esc(e)}" aria-label="${esc(this.name(e))} brightness">` : ""}</div>`;
+    };
+    const card = (g) => {
+      const onN = g.ids.filter((e) => this.isOn(e)).length;
+      const dims = g.ids.filter((e) => this.dimmable(e));
+      const lit = dims.filter((e) => this.isOn(e));
+      const avg = lit.length ? Math.round(lit.reduce((t, e) => t + this.pct(e), 0) / lit.length) : 0;
+      const isOpen = !!open[g.id];
+      const sub = onN ? `<b>${onN} of ${g.ids.length} on</b>${lit.length ? " · " + avg + "%" : ""}` : `${g.ids.length} lights · all off`;
+      return `<div class="glass lgrp ${onN ? "on" : ""}">${onN ? '<div class="glow"></div>' : ""}
+        <div class="lgh">
+          <button class="tap" data-a="gopen" data-v="${esc(g.id)}" aria-expanded="${isOpen}" aria-label="${esc(g.name)}, ${onN} of ${g.ids.length} on. ${isOpen ? "Hide" : "Show"} lights">
+            <span class="bulb">${svg("bulb", 20)}</span><span class="gt"><span class="nm">${esc(g.name)}</span><span class="gs">${sub}</span></span>
+            <span class="chv ${isOpen ? "open" : ""}">${svg("chev", 14)}</span>
+          </button>
+          <button class="sw ${onN ? "on" : ""}" role="switch" aria-checked="${onN > 0}" data-a="gtog" data-v="${esc(g.id)}" aria-label="${esc(g.name)} ${onN ? "off" : "on"}"><i></i></button>
+        </div>
+        ${dims.length ? `<input type="range" min="0" max="100" step="1" value="${avg}" data-a="gbri" data-g="${esc(g.id)}" aria-label="${esc(g.name)} brightness">` : ""}
+        ${isOpen ? `<div class="lgl">${g.ids.map(row).join("")}</div>` : ""}
+      </div>`;
+    };
+    const block = (b) => `${b.groups.length ? `<div class="lgs">${b.groups.map(card).join("")}</div>` : ""}${b.loose.length ? `<div class="grid">${b.loose.map(tile).join("")}</div>` : ""}`;
+    const bar = (n, total) => `<div class="bar"><div class="lbl">${n} of ${total} on</div><button class="act on" data-a="all" data-v="lights" data-on="1">All on</button><button class="act" data-a="all" data-v="lights" data-on="0">All off</button></div>`;
+    const cur = this.room();
+
+    // Whole house: the lights sorted under each room's name, in your room order.
+    if (cur && cur.whole) {
+      const sections = this.rooms()
+        .filter((rm) => !rm.whole)
+        .map((rm, i) => Object.assign({ id: "room:" + i, name: rm.name }, split((rm.lights || []).filter((e) => this.has(e)), rm)))
+        .filter((sec) => sec.every.length);
+      const all = uniq([].concat.apply([], sections.map((sec) => sec.every)));
+      const n = all.filter((e) => this.isOn(e)).length;
+      const body = sections.map((sec) => {
+        this._groups[sec.id] = { id: sec.id, name: sec.name, ids: sec.every };
+        const onN = sec.every.filter((e) => this.isOn(e)).length;
+        const shut = !!open[sec.id]; // sections start open; tap the name to fold one away
+        return `<section class="rsec" aria-label="${esc(sec.name)}">
+          <div class="rsh">
+            <button class="tap" data-a="gopen" data-v="${esc(sec.id)}" aria-expanded="${!shut}"><span class="rn">${esc(sec.name)}</span><span class="rc ${onN ? "lit" : ""}">${onN ? onN + " of " + sec.every.length + " on" : sec.every.length + (sec.every.length === 1 ? " light" : " lights") + " · off"}</span><span class="chv ${shut ? "" : "open"}">${svg("chev", 14)}</span></button>
+            <button class="sw ${onN ? "on" : ""}" role="switch" aria-checked="${onN > 0}" data-a="gtog" data-v="${esc(sec.id)}" aria-label="All ${esc(sec.name)} lights ${onN ? "off" : "on"}"><i></i></button>
+          </div>
+          ${shut ? "" : block(sec)}
+        </section>`;
+      }).join("");
+      return bar(n, all.length) + body;
+    }
+
+    const b = split(this.ents("lights"), cur);
+    return bar(b.every.filter((e) => this.isOn(e)).length, b.every.length) + block(b);
   }
 
   _climate() {
@@ -1132,6 +1281,7 @@ const LABELS = {
   security: "Security (alarm, locks, door and motion sensors)",
   utilities: "Utilities (geyser, pumps, plugs, fans)",
   url: "RTSP link or go2rtc stream name",
+  group_lights: "Lights in this group",
   webrtc: "Play cameras live with WebRTC (needs the WebRTC Camera integration)",
 };
 const RTSP_SCHEMA = [
@@ -1168,6 +1318,10 @@ const HOUSE_SCHEMA = [
   { name: "whole_house", selector: { boolean: {} } },
 ];
 const ROOM_FIELDS = ["lights", "climate", "music", "shades", "scenes"];
+const LGROUP_SCHEMA = [
+  { name: "name", selector: { text: {} } },
+  { name: "group_lights", selector: ENT(["light", "switch", "input_boolean"]) },
+];
 
 const EDITOR_CSS = `
 :host{display:block}
@@ -1178,6 +1332,8 @@ const EDITOR_CSS = `
 .rhead b{flex:1;font-size:14px;color:var(--primary-text-color)}
 .ib{width:34px;height:34px;border-radius:50%;border:1px solid var(--divider-color,#444);background:none;color:var(--primary-text-color);cursor:pointer;font-size:15px;line-height:1}
 .ib:disabled{opacity:.35;cursor:default}
+.room .room{margin:8px 0 0;padding:8px 10px 10px;background:rgba(127,127,127,.06)}
+.sub{margin-top:6px;height:38px;font-size:13px}
 .add{margin-top:6px;width:100%;height:44px;border-radius:12px;border:1px dashed var(--primary-color);background:none;color:var(--primary-color);font:inherit;font-weight:600;cursor:pointer}
 `;
 
@@ -1217,7 +1373,8 @@ class ArControlPanelCardEditor extends HTMLElement {
 
   _rooms() { return (this._cfg.rooms || []).filter((r) => r && typeof r === "object"); }
   _streams() { return Array.isArray(this._cfg.rtsp) ? this._cfg.rtsp.filter((r) => r && typeof r === "object") : []; }
-  _shapeOf() { return this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().length : 0) + ":" + this._streams().length; }
+  _lgs(i) { const r = this._rooms()[i] || {}; return (Array.isArray(r.light_groups) ? r.light_groups : []).filter((g) => g && typeof g === "object"); }
+  _shapeOf() { return this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().map((r, i) => this._lgs(i).length).join(",") + "/" + this._rooms().length : 0) + ":" + this._streams().length; }
 
   _form(key, schema, data) {
     const f = document.createElement("ha-form");
@@ -1235,6 +1392,11 @@ class ArControlPanelCardEditor extends HTMLElement {
     if (key === "auto") return { areas: arr(c.areas), exclude: arr(c.exclude), light_switches: arr(c.light_switches), show_unassigned: c.show_unassigned !== false, whole_house: c.whole_house !== false };
     if (key === "house") return { cameras: arr(c.cameras), security: arr(c.security), utilities: arr(c.utilities), whole_house: c.whole_house !== false };
     if (key === "rtc") return { webrtc: c.webrtc !== false };
+    if (key.indexOf("lg:") === 0) {
+      const [, i, j] = key.split(":").map(Number);
+      const g = this._lgs(i)[j] || {};
+      return { name: g.name || "", group_lights: arr(g.lights) };
+    }
     if (key.indexOf("rtsp:") === 0) {
       const r = this._streams()[Number(key.slice(5))] || {};
       return { name: r.name || "", url: r.url || "" };
@@ -1251,6 +1413,11 @@ class ArControlPanelCardEditor extends HTMLElement {
       const b = f.parentNode && f.parentNode.classList && f.parentNode.classList.contains("room") ? f.parentNode.querySelector(".rhead b") : null;
       if (!b) return;
       const i = Number(k.split(":")[1]);
+      if (k.indexOf("lg:") === 0) {
+        const [, gi, gj] = k.split(":").map(Number);
+        b.textContent = "💡 " + ((this._lgs(gi)[gj] || {}).name || "Group " + (gj + 1));
+        return;
+      }
       b.textContent = k.indexOf("rtsp:") === 0 ? (this._streams()[i] || {}).name || "Camera " + (i + 1) : (this._rooms()[i] || {}).name || "Room " + (i + 1);
     });
   }
@@ -1263,6 +1430,13 @@ class ArControlPanelCardEditor extends HTMLElement {
         c.mode = v.mode;
         if (v.mode === "manual" && !this._rooms().length) this._prefill();
       }
+    } else if (key.indexOf("lg:") === 0) {
+      const [, i, j] = key.split(":").map(Number);
+      const rooms = this._rooms();
+      const gs = this._lgs(i);
+      gs[j] = { name: v.name || "", lights: arr(v.group_lights) };
+      rooms[i] = Object.assign({}, rooms[i], { light_groups: gs });
+      c.rooms = rooms;
     } else if (key === "rtc") {
       if (v.webrtc === false) c.webrtc = false; else delete c.webrtc;
     } else if (key.indexOf("rtsp:") === 0) {
@@ -1308,6 +1482,20 @@ class ArControlPanelCardEditor extends HTMLElement {
     else if (op === "down" && i < rooms.length - 1) rooms.splice(i + 1, 0, rooms.splice(i, 1)[0]);
     this._cfg.rooms = rooms;
     this._shape = null; // order or count changed: redraw
+    this._emit();
+    this._render();
+  }
+
+  _lg(op, i, j) {
+    const rooms = this._rooms();
+    const gs = this._lgs(i);
+    if (op === "add") gs.push({ name: "Group " + (gs.length + 1), lights: [] });
+    else gs.splice(j, 1);
+    const r = Object.assign({}, rooms[i]);
+    if (gs.length) r.light_groups = gs; else delete r.light_groups;
+    rooms[i] = r;
+    this._cfg.rooms = rooms;
+    this._shape = null;
     this._emit();
     this._render();
   }
@@ -1372,6 +1560,21 @@ class ArControlPanelCardEditor extends HTMLElement {
       box.querySelector("b").textContent = r.name || "Room " + (i + 1);
       box.querySelectorAll("[data-op]").forEach((b) => b.addEventListener("click", () => this._room(b.getAttribute("data-op"), i)));
       box.appendChild(this._form("room:" + i, ROOM_SCHEMA, this._data("room:" + i)));
+      // light groups: several lights shown as one tile that opens into a list
+      this._lgs(i).forEach((g, j) => {
+        const sub = document.createElement("div");
+        sub.className = "room";
+        sub.innerHTML = `<div class="rhead"><b></b><button class="ib" title="Remove light group">✕</button></div>`;
+        sub.querySelector("b").textContent = "💡 " + (g.name || "Group " + (j + 1));
+        sub.querySelector("button").addEventListener("click", () => this._lg("del", i, j));
+        sub.appendChild(this._form("lg:" + i + ":" + j, LGROUP_SCHEMA, this._data("lg:" + i + ":" + j)));
+        box.appendChild(sub);
+      });
+      const addg = document.createElement("button");
+      addg.className = "add sub";
+      addg.textContent = "+ Add a light group (e.g. Downlights)";
+      addg.addEventListener("click", () => this._lg("add", i));
+      box.appendChild(addg);
       root.appendChild(box);
     });
     add(`<button class="add" data-add="room">+ Add a room</button>`);

@@ -62,6 +62,31 @@ security: [alarm_control_panel.house, lock.front_door]
 utilities: [switch.geyser, switch.pool_pump]
 ```
 
+### Light groups
+
+When a room has several lights of one kind, group them: a group shows as **one tile** with an on/off switch, one brightness slider for all of them, and "3 of 5 on". Tap it and it opens into the list of its lights, each with its own switch and slider.
+
+In the editor, inside a room, tap **+ Add a light group**, name it (e.g. *Downlights*) and pick its lights. Lights in a group don't need adding to the room's Lights as well. In YAML:
+
+```yaml
+rooms:
+  - name: Lounge
+    lights: [light.floor_lamp]
+    light_groups:
+      - name: Downlights
+        lights: [light.dl_1, light.dl_2, light.dl_3, light.dl_4, light.dl_5]
+      - name: Feature lights
+        lights: [light.pendant_left, light.pendant_right]
+```
+
+Home Assistant's own light groups (Settings > Helpers > Group > Light group) open into their lights the same way, in both modes. On **Whole house**, groups are named with their room ("Lounge · Downlights").
+
+### Whole house: lights sorted by room
+
+Choose **Whole house** and open **Lights**: every light is listed under its room's name (Dining, Kitchen, Lounge…), with the room's light groups inside it. Each room heading shows how many are on and has its own switch for all that room's lights; tap a room's name to fold it away.
+
+The rooms appear in **your room order**: in the editor, move rooms with ↑ ↓ (in "I pick my own" mode), or in automatic mode use *Only these areas* to set the order. Lights inside a room follow the order you picked them in.
+
 ## Automatic mode (the default)
 
 With no settings, each Home Assistant **area** becomes a room and a **Whole house** room covers everything:
