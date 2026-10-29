@@ -162,11 +162,14 @@ input[type=range]:disabled{opacity:.35}
 .item{padding:12px 14px;display:flex;align-items:center;gap:12px;border-radius:18px}
 .item .nm{flex:1}
 .item .val{font-size:13px;font-weight:700;color:rgba(var(--ink-rgb),.66)}
-.dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 14px);width:min(536px,calc(100% - 24px));display:flex;gap:4px;padding:7px;border-radius:24px;background:rgba(14,15,19,.78);border:1px solid var(--line);box-shadow:0 14px 30px -12px rgba(0,0,0,.6);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);overflow-x:auto;scrollbar-width:none;z-index:5}
+.dock{position:fixed;left:var(--dock-l,12px);width:var(--dock-w,calc(100% - 24px));bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:flex;gap:4px;padding:7px;border-radius:24px;background:rgba(14,15,19,.78);border:1px solid var(--line);box-shadow:0 14px 30px -12px rgba(0,0,0,.6);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);overflow:hidden;z-index:5}
 .dock::-webkit-scrollbar{display:none}
-.dock button{flex:1 1 0;min-width:48px;height:56px;padding:0 2px;border-radius:17px;background:none;border:0;color:rgba(var(--ink-rgb),.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden}
+.dock button{flex:1 1 0;min-width:0;height:56px;padding:0 2px;border-radius:17px;background:none;border:0;color:rgba(var(--ink-rgb),.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden}
 .dock.many button{font-size:10px;letter-spacing:-.01em}
 .dock.many button svg{width:20px;height:20px}
+.dock.many button span{display:none}
+.dock.many button.on{flex-grow:2.2}
+.dock.many button.on span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .dock button.on{background:rgba(255,255,255,.12);color:var(--ink)}
 .dock button.on svg{color:var(--acc)}
 .sheet{position:fixed;inset:0;z-index:10;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}
@@ -183,6 +186,95 @@ input[type=range]:disabled{opacity:.35}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);max-width:calc(100% - 32px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transform:translateX(-50%);padding:10px 16px;border-radius:999px;background:rgba(14,15,19,.9);border:1px solid var(--line);font-size:14px;font-weight:700;z-index:9}
 @media (max-width:360px){.clock{font-size:44px}.grid{gap:10px}}
 `;
+
+// --- where the rooms come from ---------------------------------------------------------
+const arr = (v) => (Array.isArray(v) ? v : v ? [v] : []).filter((x) => typeof x === "string" && x);
+const blankRoom = (name) => ({ name, lights: [], climate: [], music: [], shades: [], scenes: [], presence: [] });
+const isManual = (cfg) => (cfg.mode ? cfg.mode === "manual" : Array.isArray(cfg.rooms) && cfg.rooms.some((r) => r && typeof r === "object"));
+const friendly = (h, id) => {
+  const s = h.states[id];
+  return (s && s.attributes.friendly_name) || id.split(".")[1].replace(/_/g, " ");
+};
+
+// Manual: exactly what was picked in the card editor.
+function manualLayout(h, cfg) {
+  const rooms = (cfg.rooms || [])
+    .filter((r) => r && typeof r === "object")
+    .map((r, i) => Object.assign(blankRoom(r.name || "Room " + (i + 1)), {
+      lights: arr(r.lights), climate: arr(r.climate), music: arr(r.music), shades: arr(r.shades), scenes: arr(r.scenes),
+    }));
+  const security = arr(cfg.security);
+  security.sort((a, b) => (b.indexOf("alarm_control_panel.") === 0) - (a.indexOf("alarm_control_panel.") === 0));
+  return { rooms, cameras: arr(cfg.cameras), security, utilities: arr(cfg.utilities) };
+}
+
+// Automatic: one room per Home Assistant area, entities sorted by domain.
+function autoLayout(h, cfg) {
+  const S = h.states;
+  const reg = h.entities || {};
+  const devs = h.devices || {};
+  const areas = h.areas || {};
+  const skip = new Set(arr(cfg.exclude));
+  const lightSwitches = new Set(arr(cfg.light_switches));
+  const LIGHTISH = /light|lamp|lumi|down ?light|spot|chandelier|pendant|sconce|led|strip|bulb|lux/i;
+  const SEC_DC = ["door", "window", "garage_door", "opening", "motion", "occupancy", "presence", "smoke", "gas", "moisture", "safety", "tamper", "vibration", "lock"];
+  const byArea = {};
+  const other = blankRoom(cfg.unassigned_name || "Other");
+  const house = { cameras: [], security: [], utilities: [] };
+  const areaOf = (id) => {
+    const r = reg[id];
+    if (!r) return null;
+    if (r.area_id) return r.area_id;
+    const d = r.device_id && devs[r.device_id];
+    return (d && d.area_id) || null;
+  };
+  const roomFor = (id) => {
+    const a = areaOf(id);
+    if (!a || !areas[a]) return other;
+    return byArea[a] || (byArea[a] = Object.assign(blankRoom(areas[a].name), { area_id: a }));
+  };
+  Object.keys(S).sort((a, b) => friendly(h, a).localeCompare(friendly(h, b))).forEach((id) => {
+    if (skip.has(id)) return;
+    const r = reg[id];
+    if (r && (r.hidden || r.entity_category)) return; // config/diagnostic and hidden entities stay out
+    const st = S[id];
+    const dom = id.split(".")[0];
+    const dc = st.attributes.device_class;
+    switch (dom) {
+      case "light": roomFor(id).lights.push(id); break;
+      case "switch":
+        if (lightSwitches.has(id) || (dc !== "outlet" && LIGHTISH.test(id + " " + (st.attributes.friendly_name || "")))) roomFor(id).lights.push(id);
+        else house.utilities.push(id);
+        break;
+      case "fan": case "water_heater": case "vacuum": case "humidifier": house.utilities.push(id); break;
+      case "climate": roomFor(id).climate.push(id); break;
+      case "media_player": roomFor(id).music.push(id); break;
+      case "cover": roomFor(id).shades.push(id); break;
+      case "scene": roomFor(id).scenes.push(id); break;
+      case "script": if (areaOf(id)) roomFor(id).scenes.push(id); break;
+      case "camera": house.cameras.push(id); break;
+      case "alarm_control_panel": house.security.unshift(id); break;
+      case "lock": house.security.push(id); break;
+      case "binary_sensor": if (SEC_DC.indexOf(dc) >= 0) house.security.push(id); break;
+      default: break;
+    }
+  });
+  const has = (r) => ROOM_KEYS.some((k) => r[k].length);
+  let rooms = Object.keys(byArea).map((k) => byArea[k]).filter(has).sort((a, b) => a.name.localeCompare(b.name));
+  const pick = arr(cfg.areas).concat(arr(cfg.rooms)); // area ids or names, in the order to show
+  if (pick.length) {
+    rooms = pick.map((w) => rooms.find((r) => r.area_id === w || r.name.toLowerCase() === String(w).toLowerCase())).filter(Boolean);
+  }
+  if (has(other) && cfg.show_unassigned !== false) rooms.push(other);
+  return Object.assign({ rooms }, house);
+}
+
+function buildLayout(h, cfg) {
+  const L = isManual(cfg) ? manualLayout(h, cfg) : autoLayout(h, cfg);
+  if (!L.rooms.length && (L.cameras.length || L.security.length || L.utilities.length)) L.rooms.push(blankRoom("Home"));
+  if (!L.rooms.length) return null;
+  return Object.assign(L, { name: cfg.title || "Home", wholeHouse: cfg.whole_house !== false, start: 0, rtsp: [], music: {} });
+}
 
 class ArControlPanel extends HTMLElement {
   constructor() {
@@ -225,92 +317,29 @@ class ArControlPanel extends HTMLElement {
     this.shadowRoot.addEventListener("change", (e) => this._change(e));
     this.shadowRoot.addEventListener("pointerdown", (e) => { if (e.target.type === "range") this._busy++; });
     this.shadowRoot.addEventListener("pointerup", () => setTimeout(() => (this._busy = Math.max(0, this._busy - 1)), 300));
+    this._onResize = () => this._placeDock();
+    window.addEventListener("resize", this._onResize);
     this._clockT = setInterval(() => this._schedule(), 20000);
     this._camT = setInterval(() => { if (this._s.tab === "cameras" || this._s.tab === "home") this._refreshCams(); }, 4000);
     this._schedule();
   }
   disconnectedCallback() {
+    window.removeEventListener("resize", this._onResize);
     clearInterval(this._clockT);
     clearInterval(this._camT);
   }
 
-  // Build the rooms straight from Home Assistant: one room per area, each
-  // entity sorted into Lights / Climate / Music / Shades / Scenes by its
-  // domain. Cameras, Security and Utilities are house-wide. No wall panel
-  // or other integration needed.
+  // Rooms come from the card's own settings (manual mode: you pick every
+  // entity from Home Assistant's dropdowns in the card editor) or, by
+  // default, straight from Home Assistant's areas. No wall panel needed.
   _build() {
     const h = this._hass;
     if (!h || !h.states) return;
     const cfg = this._config || {};
-    const S = h.states;
-    const reg = h.entities || {};
-    const devs = h.devices || {};
-    const areas = h.areas || {};
-    const skip = new Set([].concat(cfg.exclude || []));
-    const LIGHTISH = /light|lamp|lumi|down ?light|spot|chandelier|pendant|sconce|led|strip|bulb|lux/i;
-    const SEC_DC = ["door", "window", "garage_door", "opening", "motion", "occupancy", "presence", "smoke", "gas", "moisture", "safety", "tamper", "vibration", "lock"];
-    const lightSwitches = new Set([].concat(cfg.light_switches || []));
-
-    const blank = (name, icon) => ({ name, icon, lights: [], climate: [], music: [], shades: [], scenes: [], presence: [] });
-    const byArea = {};
-    const other = blank(cfg.unassigned_name || "Other", "home");
-    const house = { cameras: [], security: [], utilities: [] };
-
-    const areaOf = (id) => {
-      const r = reg[id];
-      if (!r) return null;
-      if (r.area_id) return r.area_id;
-      const d = r.device_id && devs[r.device_id];
-      return (d && d.area_id) || null;
-    };
-    const roomFor = (id) => {
-      const a = areaOf(id);
-      if (!a || !areas[a]) return other;
-      return byArea[a] || (byArea[a] = blank(areas[a].name, areas[a].icon));
-    };
-
-    Object.keys(S).sort((a, b) => this.name(a).localeCompare(this.name(b))).forEach((id) => {
-      if (skip.has(id)) return;
-      const r = reg[id];
-      if (r && (r.hidden || r.entity_category)) return; // config/diagnostic and hidden entities stay out
-      const st = S[id];
-      const dom = id.split(".")[0];
-      const dc = st.attributes.device_class;
-      switch (dom) {
-        case "light": roomFor(id).lights.push(id); break;
-        case "switch":
-          if (lightSwitches.has(id) || (dc !== "outlet" && LIGHTISH.test(id + " " + (st.attributes.friendly_name || "")))) roomFor(id).lights.push(id);
-          else house.utilities.push(id);
-          break;
-        case "fan": case "water_heater": case "vacuum": case "humidifier": house.utilities.push(id); break;
-        case "climate": roomFor(id).climate.push(id); break;
-        case "media_player": roomFor(id).music.push(id); break;
-        case "cover": roomFor(id).shades.push(id); break;
-        case "scene": roomFor(id).scenes.push(id); break;
-        case "script": if (areaOf(id)) roomFor(id).scenes.push(id); break;
-        case "camera": house.cameras.push(id); break;
-        case "alarm_control_panel": house.security.unshift(id); break;
-        case "lock": house.security.push(id); break;
-        case "binary_sensor": if (SEC_DC.indexOf(dc) >= 0) house.security.push(id); break;
-        default: break;
-      }
-    });
-
-    const has = (r) => ROOM_KEYS.some((k) => r[k].length);
-    let rooms = Object.keys(byArea).map((k) => byArea[k]).filter(has).sort((a, b) => a.name.localeCompare(b.name));
-    if (Array.isArray(cfg.rooms) && cfg.rooms.length) {
-      // rooms: [Kitchen, Lounge, ...] picks and orders the areas to show
-      const want = cfg.rooms.map((x) => String(x).toLowerCase());
-      rooms = want.map((w) => rooms.find((r) => r.name.toLowerCase() === w)).filter(Boolean);
-    }
-    if (has(other) && cfg.show_unassigned !== false) rooms.push(other);
-    if (!rooms.length && (house.cameras.length || house.security.length || house.utilities.length)) rooms.push(blank("Home", "home"));
-
-    this._layout = rooms.length
-      ? [Object.assign({ name: cfg.title || "Home", rooms, wholeHouse: cfg.whole_house !== false, start: 0, rtsp: [], music: {} }, house)]
-      : [];
-    // Start on Whole house the first time (it's added last, after the areas).
-    if (this._s.room == null && this._layout.length && rooms.length > 1 && cfg.whole_house !== false) this._s.room = rooms.length;
+    const L = buildLayout(h, cfg);
+    this._layout = L ? [L] : [];
+    // Start on Whole house the first time (it's added last, after the rooms).
+    if (this._s.room == null && L && L.rooms.length > 1 && L.wholeHouse) this._s.room = L.rooms.length;
     this._err = null;
     this._schedule(true);
   }
@@ -648,6 +677,19 @@ class ArControlPanel extends HTMLElement {
     const nr = this.shadowRoot.querySelector(".root");
     if (nr) nr.scrollTop = y;
     this.shadowRoot.querySelectorAll("input[type=range]").forEach((t) => t.style.setProperty("--p", ((t.value - t.min) / (t.max - t.min)) * 100 + "%"));
+    this._placeDock();
+  }
+
+  // Centre the bottom bar on the card itself (not the whole screen), so it
+  // lines up with the content whatever the sidebar or screen size.
+  _placeDock() {
+    const d = this.shadowRoot.querySelector(".dock");
+    if (!d) return;
+    const r = this.getBoundingClientRect();
+    if (!r.width) return;
+    const w = Math.min(536, r.width - 24);
+    d.style.setProperty("--dock-w", w + "px");
+    d.style.setProperty("--dock-l", Math.round(r.left + (r.width - w) / 2) + "px");
   }
 
   _top() {
@@ -667,7 +709,7 @@ class ArControlPanel extends HTMLElement {
   _dock(cats) {
     const items = [{ key: "home", title: "Home", icon: "home" }].concat(cats);
     return `<nav class="dock${items.length > 5 ? " many" : ""}" aria-label="Sections">${items
-      .map((c) => `<button data-a="go" data-v="${c.key}" class="${this._s.tab === c.key ? "on" : ""}"${this._s.tab === c.key ? ' aria-current="page"' : ""}>${svg(c.icon)}${esc(c.title)}</button>`)
+      .map((c) => `<button data-a="go" data-v="${c.key}" aria-label="${esc(c.title)}" class="${this._s.tab === c.key ? "on" : ""}"${this._s.tab === c.key ? ' aria-current="page"' : ""}>${svg(c.icon)}<span>${esc(c.title)}</span></button>`)
       .join("")}</nav>`;
   }
 
@@ -902,8 +944,8 @@ class ArControlPanel extends HTMLElement {
 
 // --- as a dashboard card -------------------------------------------------------------
 // type: custom:ar-control-panel-card
-// Optional: title, rooms: [area names], exclude: [entity ids],
-// light_switches: [switch ids], show_unassigned: false, whole_house: false
+// Set up from the card editor (dropdowns of your Home Assistant entities), or
+// in YAML - see the README. With no settings, rooms come from your HA areas.
 class ArControlPanelCard extends ArControlPanel {
   setConfig(config) {
     this._config = config || {};
@@ -912,9 +954,228 @@ class ArControlPanelCard extends ArControlPanel {
   }
   getCardSize() { return 14; }
   static getStubConfig() { return {}; }
+  static getConfigElement() { return document.createElement("ar-control-panel-card-editor"); }
 }
+
+// --- the card editor: everything picked from Home Assistant dropdowns ------------------
+const ENT = (domain) => ({ entity: { multiple: true, filter: { domain } } });
+const LABELS = {
+  title: "Name of your home",
+  mode: "Where the rooms come from",
+  areas: "Only these areas (in this order, leave empty for all)",
+  exclude: "Leave these out",
+  light_switches: "Switches that are really lights",
+  show_unassigned: "Show an \"Other\" room for things with no area",
+  whole_house: "Show a \"Whole house\" room",
+  name: "Room name",
+  lights: "Lights",
+  climate: "Climate (AC, heating)",
+  music: "Music (speakers / media players)",
+  shades: "Shades, blinds, curtains, gates",
+  scenes: "Scenes and scripts (buttons on the Home page)",
+  cameras: "Cameras",
+  security: "Security (alarm, locks, door and motion sensors)",
+  utilities: "Utilities (geyser, pumps, plugs, fans)",
+};
+const MODE_SCHEMA = [
+  { name: "title", selector: { text: {} } },
+  { name: "mode", selector: { select: { mode: "list", options: [
+    { value: "manual", label: "I pick my own rooms and entities" },
+    { value: "areas", label: "Automatic, from my Home Assistant areas" },
+  ] } } },
+];
+const AUTO_SCHEMA = [
+  { name: "areas", selector: { area: { multiple: true } } },
+  { name: "exclude", selector: { entity: { multiple: true } } },
+  { name: "light_switches", selector: ENT(["switch"]) },
+  { name: "show_unassigned", selector: { boolean: {} } },
+  { name: "whole_house", selector: { boolean: {} } },
+];
+const ROOM_SCHEMA = [
+  { name: "name", selector: { text: {} } },
+  { name: "lights", selector: ENT(["light", "switch", "input_boolean"]) },
+  { name: "climate", selector: ENT(["climate"]) },
+  { name: "music", selector: ENT(["media_player"]) },
+  { name: "shades", selector: ENT(["cover"]) },
+  { name: "scenes", selector: ENT(["scene", "script"]) },
+];
+const HOUSE_SCHEMA = [
+  { name: "cameras", selector: ENT(["camera"]) },
+  { name: "security", selector: ENT(["alarm_control_panel", "lock", "binary_sensor"]) },
+  { name: "utilities", selector: ENT(["switch", "fan", "water_heater", "input_boolean", "vacuum", "humidifier"]) },
+  { name: "whole_house", selector: { boolean: {} } },
+];
+const ROOM_FIELDS = ["lights", "climate", "music", "shades", "scenes"];
+
+const EDITOR_CSS = `
+:host{display:block}
+.sec{margin:18px 0 6px;font-size:15px;font-weight:600;color:var(--primary-text-color)}
+.hint{margin:0 0 10px;font-size:13px;color:var(--secondary-text-color)}
+.room{border:1px solid var(--divider-color,#444);border-radius:12px;padding:10px 12px 12px;margin:10px 0}
+.rhead{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.rhead b{flex:1;font-size:14px;color:var(--primary-text-color)}
+.ib{width:34px;height:34px;border-radius:50%;border:1px solid var(--divider-color,#444);background:none;color:var(--primary-text-color);cursor:pointer;font-size:15px;line-height:1}
+.ib:disabled{opacity:.35;cursor:default}
+.add{margin-top:6px;width:100%;height:44px;border-radius:12px;border:1px dashed var(--primary-color);background:none;color:var(--primary-color);font:inherit;font-weight:600;cursor:pointer}
+`;
+
+class ArControlPanelCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._cfg = {};
+    this._shape = null;
+  }
+  setConfig(config) {
+    this._cfg = JSON.parse(JSON.stringify(config || {}));
+    if (!this._cfg.mode) this._cfg.mode = isManual(this._cfg) ? "manual" : "areas";
+    // Only redraw when the layout of the editor changes; otherwise just hand
+    // the forms their new values, so typing never loses focus.
+    if (this._shapeOf() !== this._shape) this._render();
+    else this._feed();
+  }
+  set hass(h) {
+    this._hass = h;
+    if (!this._shape) this._render();
+    this.shadowRoot.querySelectorAll("ha-form").forEach((f) => (f.hass = h));
+  }
+  connectedCallback() { this._ensure(); }
+
+  // ha-form and the entity dropdowns are loaded lazily by Home Assistant.
+  async _ensure() {
+    if (customElements.get("ha-form") && customElements.get("ha-selector")) return;
+    try {
+      const helpers = await window.loadCardHelpers();
+      const c = await helpers.createCardElement({ type: "entities", entities: [] });
+      if (c && c.constructor.getConfigElement) await c.constructor.getConfigElement();
+    } catch (e) { /* older HA: fall through */ }
+    this._shape = null;
+    this._render();
+  }
+
+  _rooms() { return (this._cfg.rooms || []).filter((r) => r && typeof r === "object"); }
+  _shapeOf() { return this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().length : 0); }
+
+  _form(key, schema, data) {
+    const f = document.createElement("ha-form");
+    f.hass = this._hass;
+    f.schema = schema;
+    f.data = data;
+    f.computeLabel = (s) => LABELS[s.name] || s.name;
+    f.setAttribute("data-k", key);
+    f.addEventListener("value-changed", (ev) => { ev.stopPropagation(); this._changed(key, ev.detail.value); });
+    return f;
+  }
+  _data(key) {
+    const c = this._cfg;
+    if (key === "mode") return { title: c.title || "", mode: c.mode };
+    if (key === "auto") return { areas: arr(c.areas), exclude: arr(c.exclude), light_switches: arr(c.light_switches), show_unassigned: c.show_unassigned !== false, whole_house: c.whole_house !== false };
+    if (key === "house") return { cameras: arr(c.cameras), security: arr(c.security), utilities: arr(c.utilities), whole_house: c.whole_house !== false };
+    const r = this._rooms()[Number(key.slice(5))] || {};
+    const d = { name: r.name || "" };
+    ROOM_FIELDS.forEach((k) => (d[k] = arr(r[k])));
+    return d;
+  }
+  _feed() {
+    this.shadowRoot.querySelectorAll("ha-form").forEach((f) => (f.data = this._data(f.getAttribute("data-k"))));
+    this.shadowRoot.querySelectorAll(".rhead b").forEach((b, i) => (b.textContent = (this._rooms()[i] || {}).name || "Room " + (i + 1)));
+  }
+
+  _changed(key, v) {
+    const c = this._cfg;
+    if (key === "mode") {
+      if (v.title) c.title = v.title; else delete c.title;
+      if (v.mode !== c.mode) {
+        c.mode = v.mode;
+        if (v.mode === "manual" && !this._rooms().length) this._prefill();
+      }
+    } else if (key === "auto" || key === "house") {
+      Object.keys(v).forEach((k) => {
+        const val = v[k];
+        if ((Array.isArray(val) && !val.length) || val === "" || val == null || (typeof val === "boolean" && val)) delete c[k];
+        else c[k] = val;
+      });
+    } else {
+      const i = Number(key.slice(5));
+      const rooms = this._rooms();
+      const room = Object.assign({}, rooms[i], v);
+      ROOM_FIELDS.forEach((k) => { if (Array.isArray(room[k]) && !room[k].length) delete room[k]; });
+      rooms[i] = room;
+      c.rooms = rooms;
+    }
+    this._emit();
+  }
+
+  // First switch to "I pick": start from what the automatic mode would show,
+  // so nothing has to be added from scratch.
+  _prefill() {
+    const h = this._hass;
+    const L = h && h.states ? autoLayout(h, Object.assign({}, this._cfg, { rooms: [] })) : { rooms: [], cameras: [], security: [], utilities: [] };
+    this._cfg.rooms = L.rooms.map((r) => {
+      const o = { name: r.name };
+      ROOM_FIELDS.forEach((k) => { if (r[k].length) o[k] = r[k].slice(); });
+      return o;
+    });
+    if (!this._cfg.rooms.length) this._cfg.rooms = [{ name: "Lounge" }];
+    ["cameras", "security", "utilities"].forEach((k) => { if (L[k].length) this._cfg[k] = L[k].slice(); });
+  }
+
+  _room(op, i) {
+    const rooms = this._rooms();
+    if (op === "add") rooms.push({ name: "Room " + (rooms.length + 1) });
+    else if (op === "del") rooms.splice(i, 1);
+    else if (op === "up" && i > 0) rooms.splice(i - 1, 0, rooms.splice(i, 1)[0]);
+    else if (op === "down" && i < rooms.length - 1) rooms.splice(i + 1, 0, rooms.splice(i, 1)[0]);
+    this._cfg.rooms = rooms;
+    this._shape = null; // order or count changed: redraw
+    this._emit();
+    this._render();
+  }
+
+  _emit() {
+    const out = Object.assign({}, this._cfg);
+    if (out.mode === "areas" && !isManual(Object.assign({}, out, { mode: undefined }))) delete out.mode; // the default
+    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: out }, bubbles: true, composed: true }));
+  }
+
+  _render() {
+    if (!this._hass) return;
+    this._shape = this._shapeOf();
+    const root = this.shadowRoot;
+    root.innerHTML = `<style>${EDITOR_CSS}</style>`;
+    const add = (html) => { const d = document.createElement("div"); d.innerHTML = html; root.appendChild(d.firstElementChild); };
+    root.appendChild(this._form("mode", MODE_SCHEMA, this._data("mode")));
+    if (this._cfg.mode !== "manual") {
+      add(`<div class="sec">Automatic rooms</div>`);
+      add(`<p class="hint">Each Home Assistant area becomes a room. Choose "I pick my own rooms and entities" above to choose every light, AC, speaker and blind yourself.</p>`);
+      root.appendChild(this._form("auto", AUTO_SCHEMA, this._data("auto")));
+      return;
+    }
+    add(`<div class="sec">Rooms</div>`);
+    add(`<p class="hint">Pick what's in each room from the dropdowns. Use the arrows to change the order.</p>`);
+    const rooms = this._rooms();
+    rooms.forEach((r, i) => {
+      const box = document.createElement("div");
+      box.className = "room";
+      box.innerHTML = `<div class="rhead"><b></b>
+        <button class="ib" data-op="up" title="Move up"${i === 0 ? " disabled" : ""}>↑</button>
+        <button class="ib" data-op="down" title="Move down"${i === rooms.length - 1 ? " disabled" : ""}>↓</button>
+        <button class="ib" data-op="del" title="Remove room">✕</button></div>`;
+      box.querySelector("b").textContent = r.name || "Room " + (i + 1);
+      box.querySelectorAll("[data-op]").forEach((b) => b.addEventListener("click", () => this._room(b.getAttribute("data-op"), i)));
+      box.appendChild(this._form("room:" + i, ROOM_SCHEMA, this._data("room:" + i)));
+      root.appendChild(box);
+    });
+    add(`<button class="add">+ Add a room</button>`);
+    root.querySelector(".add").addEventListener("click", () => this._room("add"));
+    add(`<div class="sec">Whole house</div>`);
+    add(`<p class="hint">These show on their own pages for the whole home.</p>`);
+    root.appendChild(this._form("house", HOUSE_SCHEMA, this._data("house")));
+  }
+}
+
+if (!customElements.get("ar-control-panel-card-editor")) customElements.define("ar-control-panel-card-editor", ArControlPanelCardEditor);
 if (!customElements.get("ar-control-panel-card")) customElements.define("ar-control-panel-card", ArControlPanelCard);
 window.customCards = window.customCards || [];
 if (!window.customCards.some((c) => c.type === "ar-control-panel-card"))
-  window.customCards.push({ type: "ar-control-panel-card", name: "AR Control Panel", description: "A phone control in the AR Elegant style: your Home Assistant rooms, lights, climate, music, cameras and security. No wall panel needed.", preview: false });
-
+  window.customCards.push({ type: "ar-control-panel-card", name: "AR Control Panel", description: "A phone control in the AR Elegant style: pick your rooms, lights, climate, music, cameras and security from your Home Assistant entities. No wall panel needed.", preview: false });

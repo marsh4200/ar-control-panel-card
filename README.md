@@ -32,9 +32,39 @@ views:
 
 3. Save. It's in the sidebar and in the Home Assistant phone app.
 
-## How things are sorted
+## Pick your own rooms and entities
 
-Give your devices an **area** (Settings > Areas) and each area becomes a room. A **Whole house** room covers everything.
+Open the dashboard > pencil (Edit) > click the card > **Edit**. Everything is picked from dropdowns of your Home Assistant entities:
+
+1. **Where the rooms come from** > choose **I pick my own rooms and entities**. It starts you off with what it found in your areas, so you only change what's wrong.
+2. For each room, set the **name**, then pick its **Lights**, **Climate**, **Music**, **Shades** and **Scenes** from the dropdowns.
+3. **+ Add a room** for more rooms; ↑ ↓ change the order, ✕ removes one.
+4. Under **Whole house**, pick your **Cameras**, **Security** (alarm, locks, door and motion sensors) and **Utilities** (geyser, pumps, plugs).
+5. Save.
+
+Prefer YAML? The same thing looks like this:
+
+```yaml
+type: custom:ar-control-panel-card
+title: My Home
+mode: manual
+rooms:
+  - name: Lounge
+    lights: [light.lounge_downlights, switch.lounge_lamp]
+    climate: [climate.lounge_ac]
+    music: [media_player.lounge_speaker]
+    shades: [cover.lounge_curtain]
+    scenes: [scene.movie_night]
+  - name: Kitchen
+    lights: [light.kitchen_pendants]
+cameras: [camera.gate]
+security: [alarm_control_panel.house, lock.front_door]
+utilities: [switch.geyser, switch.pool_pump]
+```
+
+## Automatic mode (the default)
+
+With no settings, each Home Assistant **area** becomes a room and a **Whole house** room covers everything:
 
 | Section | What goes there |
 |---|---|
@@ -47,21 +77,7 @@ Give your devices an **area** (Settings > Areas) and each area becomes a room. A
 | Security | alarm panels, locks, door / window / motion / smoke sensors |
 | Utilities | other switches, fans, geysers (water heaters) |
 
-Hidden entities and config/diagnostic entities are left out. Anything without an area goes in an **Other** room.
-
-## Options (all optional)
-
-```yaml
-type: custom:ar-control-panel-card
-title: My Home                     # name of the home
-rooms: [Lounge, Kitchen, Bedroom]  # only these areas, in this order
-exclude:                           # leave these out
-  - switch.server_rack
-light_switches:                    # switches that are really lights
-  - switch.relay_3
-show_unassigned: false             # hide the "Other" room
-whole_house: false                 # hide the "Whole house" room
-```
+Hidden and config/diagnostic entities are left out, and anything without an area goes in an **Other** room. In the editor you can still choose which areas to show, leave entities out, and mark switches that are really lights.
 
 ## Needs
 
