@@ -1,7 +1,9 @@
 # AR Control Panel
 
-A Home Assistant dashboard card in the AR NSPanel Pro wall panels' Elegant style, made for phones.
-It shows the same rooms as the wall panels: Home, Lights, Climate, Music (with Music Assistant / Spotify and a Library), Cameras, Security, Shades and Utilities.
+A Home Assistant dashboard card for your phone, in the AR Elegant style.
+It shows your home as rooms: Home, Lights, Climate, Music (with a Library), Cameras, Security, Shades and Utilities.
+
+**No wall panel needed.** The rooms come straight from Home Assistant's own **areas**, so anything you've already set up in Home Assistant just appears.
 
 ## Install with HACS
 
@@ -26,14 +28,43 @@ views:
     type: panel
     cards:
       - type: custom:ar-control-panel-card
-        # panel: Showroom panel   # optional: which wall panel's rooms to use
 ```
 
 3. Save. It's in the sidebar and in the Home Assistant phone app.
 
+## How things are sorted
+
+Give your devices an **area** (Settings > Areas) and each area becomes a room. A **Whole house** room covers everything.
+
+| Section | What goes there |
+|---|---|
+| Lights | `light.*`, plus switches whose name sounds like a light (light, lamp, downlight, LED…) |
+| Climate | `climate.*` |
+| Music | `media_player.*` |
+| Shades | `cover.*` |
+| Scenes (Home page) | `scene.*`, and scripts that have an area |
+| Cameras | `camera.*` |
+| Security | alarm panels, locks, door / window / motion / smoke sensors |
+| Utilities | other switches, fans, geysers (water heaters) |
+
+Hidden entities and config/diagnostic entities are left out. Anything without an area goes in an **Other** room.
+
+## Options (all optional)
+
+```yaml
+type: custom:ar-control-panel-card
+title: My Home                     # name of the home
+rooms: [Lounge, Kitchen, Bedroom]  # only these areas, in this order
+exclude:                           # leave these out
+  - switch.server_rack
+light_switches:                    # switches that are really lights
+  - switch.relay_3
+show_unassigned: false             # hide the "Other" room
+whole_house: false                 # hide the "Whole house" room
+```
+
 ## Needs
 
 - Home Assistant 2024.7 or newer
-- The **AR NSPanel Pro** integration (the version with phone support: the `mobile_layout` command), with at least one panel on the Elegant dashboard. The card reads the rooms from it, so nothing is set up twice.
 
-States and controls use Home Assistant's own login and permissions. Phones never receive panel secrets (RTSP passwords, PINs, logins).
+States and controls use Home Assistant's own login and permissions.

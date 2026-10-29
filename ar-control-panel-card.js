@@ -1,9 +1,8 @@
-// AR Control Panel — the customer's phone page, in the wall panels' Elegant style.
+// AR Control Panel — a phone control in the AR Elegant style.
 //
-// A Home Assistant sidebar panel (any user): HA hands it `hass` (live states,
-// service calls, the logged-in user). The rooms and what is in them come from
-// the wall panels' own Elegant layout (ws ar_nspanel_pro/mobile_layout), so the
-// phone shows exactly what the panels show — nothing to set up twice.
+// A Home Assistant dashboard card (any user): HA hands it `hass` (live states,
+// service calls, areas, the logged-in user). The rooms come from Home
+// Assistant's own areas, so it works on its own — no wall panel needed.
 // Plain web component, no build step.
 
 const CATS = [
@@ -205,9 +204,15 @@ class ArControlPanel extends HTMLElement {
 
   // --- HA plumbing ----------------------------------------------------------------
   set hass(h) {
-    const first = !this._hass;
+    const prev = this._hass;
     this._hass = h;
-    if (first) this._fetch();
+    // Rebuild the rooms when areas, devices or entities change (HA replaces
+    // these objects on every registry update) or an entity appears/disappears.
+    const n = h && h.states ? Object.keys(h.states).length : 0;
+    if (!prev || !this._layout || h.areas !== prev.areas || h.devices !== prev.devices || h.entities !== prev.entities || n !== this._nStates) {
+      this._nStates = n;
+      this._build();
+    }
     this._schedule();
   }
   get hass() { return this._hass; }
@@ -229,22 +234,84 @@ class ArControlPanel extends HTMLElement {
     clearInterval(this._camT);
   }
 
-  async _fetch() {
-    try {
-      const r = await this._hass.callWS({ type: "ar_nspanel_pro/mobile_layout" });
-      this._layout = (r && r.panels) || [];
-      this._err = null;
-      if (this._s.cardPanel) {
-        const want = String(this._s.cardPanel).toLowerCase();
-        const i = this._layout.findIndex((p) => p.name.toLowerCase() === want || p.device_id.toLowerCase() === want);
-        if (i >= 0) this._s.panel = i;
+  // Build the rooms straight from Home Assistant: one room per area, each
+  // entity sorted into Lights / Climate / Music / Shades / Scenes by its
+  // domain. Cameras, Security and Utilities are house-wide. No wall panel
+  // or other integration needed.
+  _build() {
+    const h = this._hass;
+    if (!h || !h.states) return;
+    const cfg = this._config || {};
+    const S = h.states;
+    const reg = h.entities || {};
+    const devs = h.devices || {};
+    const areas = h.areas || {};
+    const skip = new Set([].concat(cfg.exclude || []));
+    const LIGHTISH = /light|lamp|lumi|down ?light|spot|chandelier|pendant|sconce|led|strip|bulb|lux/i;
+    const SEC_DC = ["door", "window", "garage_door", "opening", "motion", "occupancy", "presence", "smoke", "gas", "moisture", "safety", "tamper", "vibration", "lock"];
+    const lightSwitches = new Set([].concat(cfg.light_switches || []));
+
+    const blank = (name, icon) => ({ name, icon, lights: [], climate: [], music: [], shades: [], scenes: [], presence: [] });
+    const byArea = {};
+    const other = blank(cfg.unassigned_name || "Other", "home");
+    const house = { cameras: [], security: [], utilities: [] };
+
+    const areaOf = (id) => {
+      const r = reg[id];
+      if (!r) return null;
+      if (r.area_id) return r.area_id;
+      const d = r.device_id && devs[r.device_id];
+      return (d && d.area_id) || null;
+    };
+    const roomFor = (id) => {
+      const a = areaOf(id);
+      if (!a || !areas[a]) return other;
+      return byArea[a] || (byArea[a] = blank(areas[a].name, areas[a].icon));
+    };
+
+    Object.keys(S).sort((a, b) => this.name(a).localeCompare(this.name(b))).forEach((id) => {
+      if (skip.has(id)) return;
+      const r = reg[id];
+      if (r && (r.hidden || r.entity_category)) return; // config/diagnostic and hidden entities stay out
+      const st = S[id];
+      const dom = id.split(".")[0];
+      const dc = st.attributes.device_class;
+      switch (dom) {
+        case "light": roomFor(id).lights.push(id); break;
+        case "switch":
+          if (lightSwitches.has(id) || (dc !== "outlet" && LIGHTISH.test(id + " " + (st.attributes.friendly_name || "")))) roomFor(id).lights.push(id);
+          else house.utilities.push(id);
+          break;
+        case "fan": case "water_heater": case "vacuum": case "humidifier": house.utilities.push(id); break;
+        case "climate": roomFor(id).climate.push(id); break;
+        case "media_player": roomFor(id).music.push(id); break;
+        case "cover": roomFor(id).shades.push(id); break;
+        case "scene": roomFor(id).scenes.push(id); break;
+        case "script": if (areaOf(id)) roomFor(id).scenes.push(id); break;
+        case "camera": house.cameras.push(id); break;
+        case "alarm_control_panel": house.security.unshift(id); break;
+        case "lock": house.security.push(id); break;
+        case "binary_sensor": if (SEC_DC.indexOf(dc) >= 0) house.security.push(id); break;
+        default: break;
       }
-    } catch (e) {
-      this._layout = [];
-      this._err = e && e.code === "unknown_command"
-        ? "AR Control Panel needs the AR NSPanel Pro integration (updated to the version with phone support)."
-        : (e && e.message) || "Couldn't load the panel layout.";
+    });
+
+    const has = (r) => ROOM_KEYS.some((k) => r[k].length);
+    let rooms = Object.keys(byArea).map((k) => byArea[k]).filter(has).sort((a, b) => a.name.localeCompare(b.name));
+    if (Array.isArray(cfg.rooms) && cfg.rooms.length) {
+      // rooms: [Kitchen, Lounge, ...] picks and orders the areas to show
+      const want = cfg.rooms.map((x) => String(x).toLowerCase());
+      rooms = want.map((w) => rooms.find((r) => r.name.toLowerCase() === w)).filter(Boolean);
     }
+    if (has(other) && cfg.show_unassigned !== false) rooms.push(other);
+    if (!rooms.length && (house.cameras.length || house.security.length || house.utilities.length)) rooms.push(blank("Home", "home"));
+
+    this._layout = rooms.length
+      ? [Object.assign({ name: cfg.title || "Home", rooms, wholeHouse: cfg.whole_house !== false, start: 0, rtsp: [], music: {} }, house)]
+      : [];
+    // Start on Whole house the first time (it's added last, after the areas).
+    if (this._s.room == null && this._layout.length && rooms.length > 1 && cfg.whole_house !== false) this._s.room = rooms.length;
+    this._err = null;
     this._schedule(true);
   }
 
@@ -567,7 +634,7 @@ class ArControlPanel extends HTMLElement {
     let body;
     if (L == null) body = `<div class="empty">Loading…</div>`;
     else if (!L.length)
-      body = `<div class="empty">${this._err ? esc(this._err) + "<br><br>" : ""}No AR panel has an Elegant dashboard yet.<br>Set one up in <b>AR NSPanel Pro › Device Setup › Dashboard</b>, and its rooms appear here.</div>`;
+      body = `<div class="empty">${this._err ? esc(this._err) + "<br><br>" : ""}Nothing to control yet.<br>Add lights, climate, speakers or blinds to Home Assistant and give them an <b>area</b> (Settings › Areas), and they appear here.</div>`;
     else {
       const cats = this.cats();
       if (s.tab !== "home" && !cats.some((c) => c.key === s.tab)) s.tab = "home";
@@ -813,15 +880,12 @@ class ArControlPanel extends HTMLElement {
   }
 
   _roomsSheet() {
-    const L = this._layout || [];
     const rs = this.rooms();
     const cur = this.room();
-    const panels = L.length > 1
-      ? `<div class="hi" style="margin:14px 2px 0">Wall panel</div>${L.map((p, i) => `<button class="opt ${i === (this._s.panel || 0) ? "on" : ""}" data-a="panel" data-v="${i}">${esc(p.name)}</button>`).join("")}`
-      : "";
+    const panels = "";
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Choose room"><div class="box">
       <h2>Rooms <button class="iconbtn" data-a="close" aria-label="Close">${svg("close", 18)}</button></h2>
-      ${rs.map((r, i) => `<button class="opt ${r === cur ? "on" : ""}" data-a="room" data-v="${i}">${esc(r.name || "Room " + (i + 1))}</button>`).join("")}
+      ${rs.map((r, i) => `<button class="opt ${cur && r.name === cur.name ? "on" : ""}" data-a="room" data-v="${i}">${esc(r.name || "Room " + (i + 1))}</button>`).join("")}
       ${panels}</div></div>`;
   }
 
@@ -837,11 +901,14 @@ class ArControlPanel extends HTMLElement {
 }
 
 // --- as a dashboard card -------------------------------------------------------------
-// type: custom:ar-control-panel-card   (optional: panel: <wall panel name>)
+// type: custom:ar-control-panel-card
+// Optional: title, rooms: [area names], exclude: [entity ids],
+// light_switches: [switch ids], show_unassigned: false, whole_house: false
 class ArControlPanelCard extends ArControlPanel {
   setConfig(config) {
     this._config = config || {};
-    this._s.cardPanel = this._config.panel || null;
+    this._s.panel = 0;
+    if (this._hass) this._build();
   }
   getCardSize() { return 14; }
   static getStubConfig() { return {}; }
@@ -849,5 +916,5 @@ class ArControlPanelCard extends ArControlPanel {
 if (!customElements.get("ar-control-panel-card")) customElements.define("ar-control-panel-card", ArControlPanelCard);
 window.customCards = window.customCards || [];
 if (!window.customCards.some((c) => c.type === "ar-control-panel-card"))
-  window.customCards.push({ type: "ar-control-panel-card", name: "AR Control Panel", description: "The wall panels' Elegant dashboard, for phones: same rooms, lights, climate, music, cameras and security.", preview: false });
+  window.customCards.push({ type: "ar-control-panel-card", name: "AR Control Panel", description: "A phone control in the AR Elegant style: your Home Assistant rooms, lights, climate, music, cameras and security. No wall panel needed.", preview: false });
 

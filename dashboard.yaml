@@ -8,4 +8,4 @@ views:
     type: panel
     cards:
       - type: custom:ar-control-panel-card
-        # panel: Showroom panel   # optional: which wall panel's rooms to use
+        # rooms: [Lounge, Kitchen]   # optional: only these areas, in this order
