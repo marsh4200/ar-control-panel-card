@@ -79,8 +79,35 @@ With no settings, each Home Assistant **area** becomes a room and a **Whole hous
 
 Hidden and config/diagnostic entities are left out, and anything without an area goes in an **Other** room. In the editor you can still choose which areas to show, leave entities out, and mark switches that are really lights.
 
+## Live cameras with WebRTC
+
+If you have the **WebRTC Camera** integration installed (HACS, by AlexxIT), the Cameras page plays your cameras live through it, with very little delay. Tap a camera tile to switch the big player to it.
+
+- **Home Assistant cameras** (`camera.*`) play live through WebRTC too.
+- **RTSP cameras that aren't in Home Assistant**: in the card editor under **RTSP cameras**, tap **+ Add an RTSP camera**, give it a name and paste its RTSP link, e.g. `rtsp://admin:password@192.168.1.20:554/stream1`.
+- **Keep passwords out of the dashboard:** anyone who can edit the dashboard can read an RTSP link in its settings. Instead, set the stream up in WebRTC / go2rtc and put just the **stream name** (e.g. `driveway`) in the link box.
+- Turn **Play cameras live with WebRTC** off to go back to snapshots.
+
+YAML:
+
+```yaml
+rtsp:
+  - name: Driveway
+    url: driveway              # go2rtc stream name, or an rtsp:// link
+  - name: Back yard
+    url: rtsp://admin:password@192.168.1.21:554/stream1
+webrtc: true                   # default; false shows snapshots instead
+```
+
+Without WebRTC Camera installed, Home Assistant cameras show snapshots (tap for live view) and RTSP cameras show a note asking for it.
+
+## Grouped speakers
+
+The Music page shows when speakers are playing together. Grouped speakers have a link icon on their tab, and the player shows who's in the group: which speaker leads, which ones are playing, and a **Leave group** / **Ungroup** button. Music Assistant speaker groups show their speakers too, and the Home page says how many speakers are grouped ("Playing · Kitchen + 2 grouped").
+
 ## Needs
 
 - Home Assistant 2024.7 or newer
+- For live RTSP cameras: the **WebRTC Camera** integration (HACS)
 
-States and controls use Home Assistant's own login and permissions.
+States and controls use Home Assistant's own login and permissions. RTSP links you put in the card are stored in the dashboard's settings, so use go2rtc stream names if other people can edit your dashboards.

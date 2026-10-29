@@ -55,6 +55,8 @@ const P = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   cloud: '<path d="M7 19h10a4 4 0 0 0 0-8 6 6 0 0 0-11.6 2A3 3 0 0 0 7 19z"/>',
   close: '<path d="M18 6L6 18M6 6l12 12"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  speaker: '<rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="14" r="4"/><path d="M12 6h.01"/>',
 };
 const svg = (n, size, extra) =>
   `<svg width="${size || 22}" height="${size || 22}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"${extra || ""}>${P[n] || ""}</svg>`;
@@ -120,6 +122,16 @@ input[type=range]:disabled{opacity:.35}
 .tabs::-webkit-scrollbar{display:none}
 .tab{flex:none;height:40px;padding:0 16px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:rgba(var(--ink-rgb),.66);font-size:13px;font-weight:700}
 .tab.on{background:rgba(255,255,255,.16);color:var(--ink)}
+.tab .lk{display:inline-flex;vertical-align:-3px;margin-right:5px;color:var(--acc)}
+.grp{width:100%;padding:12px 14px;border-radius:16px;background:rgba(var(--acc-rgb),.08);border:1px solid rgba(var(--acc-rgb),.28)}
+.grp .gh{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--acc)}
+.grp .gh span{flex:1;min-width:0}
+.grp .gm{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.grp .gm button{display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid var(--line);font-size:12px;font-weight:700;color:rgba(var(--ink-rgb),.85)}
+.grp .gm button.me{background:rgba(255,255,255,.16);color:var(--ink)}
+.grp .gm i{font-style:normal;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--acc)}
+.grp .gm .pl{width:7px;height:7px;border-radius:50%;background:#7ee2a8}
+.grp .leave{height:30px;padding:0 12px;border-radius:999px;background:none;border:1px solid var(--line);font-size:12px;font-weight:700;color:rgba(var(--ink-rgb),.75)}
 .dialbox{margin-top:16px;padding:22px 18px 20px;display:flex;flex-direction:column;align-items:center}
 .dial{position:relative;width:250px;height:250px}
 .dial svg{position:absolute;left:0;top:0}
@@ -154,6 +166,13 @@ input[type=range]:disabled{opacity:.35}
 .live i{width:7px;height:7px;border-radius:50%;background:#ff6b6b}
 .camsm{position:relative;height:128px;border-radius:20px;overflow:hidden;border:1px solid var(--line);background:linear-gradient(160deg,#343a41,#1b1f24);padding:0}
 .camsm .cap{font-size:14px;padding:18px 12px 10px}
+.camsm .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(var(--ink-rgb),.35)}
+.camsm.sel{border-color:rgba(var(--acc-rgb),.7);box-shadow:0 0 0 1px rgba(var(--acc-rgb),.5)}
+.camrtc{position:relative;margin-top:16px;width:100%;aspect-ratio:16/9;border-radius:22px;overflow:hidden;border:1px solid var(--line);background:#000}
+.camrtc webrtc-camera{position:absolute;inset:0;display:block;width:100%;height:100%}
+.camname{display:flex;align-items:center;gap:8px;margin:16px 4px 0;font-size:16px;font-weight:700}
+.camname .live{position:static}
+.camname .cn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .note{margin-top:14px;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.16);font-size:13px;font-weight:600;color:rgba(var(--ink-rgb),.66)}
 .alarm{margin-top:16px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
 .alarm .st{font-size:26px;font-weight:600}
@@ -271,9 +290,10 @@ function autoLayout(h, cfg) {
 
 function buildLayout(h, cfg) {
   const L = isManual(cfg) ? manualLayout(h, cfg) : autoLayout(h, cfg);
-  if (!L.rooms.length && (L.cameras.length || L.security.length || L.utilities.length)) L.rooms.push(blankRoom("Home"));
+  if (!L.rooms.length && (L.cameras.length || L.security.length || L.utilities.length || (Array.isArray(cfg.rtsp) && cfg.rtsp.length))) L.rooms.push(blankRoom("Home"));
   if (!L.rooms.length) return null;
-  return Object.assign(L, { name: cfg.title || "Home", wholeHouse: cfg.whole_house !== false, start: 0, rtsp: [], music: {} });
+  const rtsp = (Array.isArray(cfg.rtsp) ? cfg.rtsp : []).filter((r) => r && r.url).map((r, i) => ({ name: r.name || "Camera " + (i + 1), url: String(r.url) }));
+  return Object.assign(L, { name: cfg.title || "Home", wholeHouse: cfg.whole_house !== false, start: 0, rtsp, music: {} });
 }
 
 class ArControlPanel extends HTMLElement {
@@ -305,6 +325,7 @@ class ArControlPanel extends HTMLElement {
       this._nStates = n;
       this._build();
     }
+    if (this._rtc) this._rtc.el.hass = h;
     this._schedule();
   }
   get hass() { return this._hass; }
@@ -317,6 +338,7 @@ class ArControlPanel extends HTMLElement {
     this.shadowRoot.addEventListener("change", (e) => this._change(e));
     this.shadowRoot.addEventListener("pointerdown", (e) => { if (e.target.type === "range") this._busy++; });
     this.shadowRoot.addEventListener("pointerup", () => setTimeout(() => (this._busy = Math.max(0, this._busy - 1)), 300));
+    this._loadRtc();
     this._onResize = () => this._placeDock();
     window.addEventListener("resize", this._onResize);
     this._clockT = setInterval(() => this._schedule(), 20000);
@@ -441,6 +463,88 @@ class ArControlPanel extends HTMLElement {
       .filter((e) => (m.ma && (S[e].attributes.mass_player_type != null || S[e].attributes.mass_player_id != null || /^media_player\.(mass_|ma_)/.test(e))) || (m.spotify && /^media_player\.spotify/.test(e)))
       .sort((a, b) => this.name(a).localeCompare(this.name(b)));
   }
+  // Live cameras through the WebRTC Camera integration (AlexxIT), when it's
+  // installed: its <webrtc-camera> player streams RTSP links, go2rtc stream
+  // names and camera entities with very little delay.
+  rtcWanted() { return !this._config || this._config.webrtc !== false; }
+  _loadRtc() {
+    if (!this.rtcWanted() || customElements.get("webrtc-camera") || ArControlPanel._rtcTried) return;
+    ArControlPanel._rtcTried = true;
+    // The integration serves its player here; load it if the dashboard hasn't yet.
+    const sc = document.createElement("script");
+    sc.type = "module";
+    sc.src = "/webrtc/webrtc-camera.js";
+    document.head.appendChild(sc);
+    customElements.whenDefined("webrtc-camera").then(() => this._schedule(true));
+  }
+  rtcOk() { return this.rtcWanted() && !!customElements.get("webrtc-camera"); }
+  camList() {
+    const p = this.panelCfg();
+    const ents = this.ents("cameras").map((e) => ({ key: e, name: this.name(e), entity: e }));
+    const streams = ((p && p.rtsp) || []).map((r, i) => ({ key: "rtsp:" + i, name: r.name, url: r.url }));
+    return ents.concat(streams);
+  }
+  // Keep one live player alive across redraws (the page is redrawn on every
+  // state change; re-creating the player would restart the stream).
+  _mountRtc() {
+    const slot = this.shadowRoot.querySelector("[data-rtc]");
+    if (!slot) {
+      if (this._rtc) { this._rtc.el.remove(); this._rtc = null; }
+      return;
+    }
+    const key = slot.getAttribute("data-rtc");
+    if (!this._rtc || this._rtc.key !== key) {
+      const cam = this.camList().find((c) => c.key === key);
+      if (!cam) return;
+      const el = document.createElement("webrtc-camera");
+      const conf = Object.assign({ ui: true, muted: true }, cam.url ? { url: cam.url } : { entity: cam.entity }, (this._config && this._config.webrtc_options) || {});
+      try {
+        el.setConfig(conf);
+      } catch (e) {
+        this._say((e && e.message) || "WebRTC couldn't open this camera");
+        return;
+      }
+      el.hass = this._hass;
+      this._rtc = { key, el };
+    }
+    slot.appendChild(this._rtc.el);
+  }
+
+  // Speaker grouping. Home Assistant puts the whole group (leader first) in
+  // `group_members` on each grouped player; a speaker-group player (Music
+  // Assistant group, or HA's own media_player group) lists its members.
+  groupInfo(e) {
+    const s = this.st(e);
+    if (!s) return null;
+    const a = s.attributes;
+    const S = this._hass.states;
+    const own = arr(a.group_members);
+    const isGroupPlayer = /group/.test(String(a.mass_player_type || "")) || (Array.isArray(a.entity_id) && a.entity_id.length > 0);
+    if (isGroupPlayer) {
+      const members = uniq(own.concat(arr(a.entity_id))).filter((x) => x !== e);
+      return members.length ? { kind: "group", leader: e, members } : null;
+    }
+    const groupPlayer = (k) => /group/.test(String(S[k].attributes.mass_player_type || "")) || Array.isArray(S[k].attributes.entity_id);
+    const lists = (k) => uniq(arr(S[k].attributes.group_members).concat(arr(S[k].attributes.entity_id))).indexOf(e) >= 0;
+    let members = own;
+    if (members.length < 2) {
+      // some players only list the group on the leader: look for one that includes us
+      const lead = Object.keys(S).find((k) => k !== e && k.indexOf("media_player.") === 0 && !groupPlayer(k) && arr(S[k].attributes.group_members).length > 1 && lists(k));
+      if (lead) members = arr(S[lead].attributes.group_members);
+    }
+    if (members.length >= 2) return { kind: "sync", leader: members[0], members };
+    // playing as part of a speaker group right now (a group that's only set up doesn't count)
+    const via = Object.keys(S).find((k) => k !== e && k.indexOf("media_player.") === 0 && groupPlayer(k) && ["playing", "paused", "buffering"].indexOf(S[k].state) >= 0 && lists(k));
+    if (via) {
+      const all = uniq(arr(S[via].attributes.group_members).concat(arr(S[via].attributes.entity_id)));
+      return { kind: "in", leader: via, members: all };
+    }
+    return null;
+  }
+  canGroup(e) {
+    const s = this.st(e);
+    return !!s && ((s.attributes.supported_features || 0) & 524288) === 524288;
+  }
   cats() {
     const p = this.panelCfg();
     return CATS.filter((c) => this.ents(c.key).length || (c.key === "cameras" && p && p.rtsp && p.rtsp.length));
@@ -506,7 +610,10 @@ class ArControlPanel extends HTMLElement {
     }
     if (cat === "music") {
       const p = es.find((e) => this.st(e).state === "playing");
-      return p ? { s: "Playing · " + this.name(p), lit: true } : { s: "Nothing playing" };
+      if (!p) return { s: "Nothing playing" };
+      const g = this.groupInfo(p);
+      const n = g ? g.members.length - (g.kind === "group" ? 0 : 1) : 0;
+      return { s: "Playing · " + this.name(p) + (n > 0 ? ` + ${n} grouped` : ""), lit: true };
     }
     if (cat === "shades") {
       const n = es.filter((e) => this.isOn(e)).length;
@@ -613,8 +720,17 @@ class ArControlPanel extends HTMLElement {
         break;
       }
       case "cover": this.call("cover", v, { entity_id: e }); break;
+      case "unjoin": {
+        const g = this.groupInfo(e);
+        // the leader ungroups everyone; a member just leaves
+        const ids = g && g.leader === e ? g.members.filter((m) => m !== e) : [e];
+        this.call("media_player", "unjoin", { entity_id: ids });
+        this._say(g && g.leader === e ? "Ungrouped" : "Left the group");
+        break;
+      }
       case "lock": this.call("lock", this.st(e).state === "locked" ? "unlock" : "lock", { entity_id: e }); break;
       case "more": this.more(e); break;
+      case "cam": this._set({ cam: v }); this.shadowRoot.querySelector(".root").scrollTop = 0; break;
       case "arm": {
         const s = this.st(e);
         if (s && s.attributes.code_format && s.attributes.code_arm_required !== false) {
@@ -671,12 +787,19 @@ class ArControlPanel extends HTMLElement {
     }
     const sheet = this._sheet === "rooms" ? this._roomsSheet() : this._pin ? this._pinSheet() : "";
     const toast = this._toast ? `<div class="toast" role="status">${esc(this._toast)}</div>` : "";
+    const html = `<div class="root"><div class="wrap">${body}</div></div>${sheet}${toast}`;
+    // Nothing on screen changed (e.g. a state change elsewhere in the house):
+    // leave the page alone, so a live camera keeps streaming untouched.
+    if (html === this._lastHtml && this.shadowRoot.querySelector(".root")) { this._placeDock(); return; }
+    this._lastHtml = html;
+    if (this._rtc && this._rtc.el.parentNode) this._rtc.el.parentNode.removeChild(this._rtc.el);
     const keepScroll = this.shadowRoot.querySelector(".root");
     const y = keepScroll ? keepScroll.scrollTop : 0;
-    this.shadowRoot.innerHTML = `<style>${CSS}</style><div class="root"><div class="wrap">${body}</div></div>${sheet}${toast}`;
+    this.shadowRoot.innerHTML = `<style>${CSS}</style>${html}`;
     const nr = this.shadowRoot.querySelector(".root");
     if (nr) nr.scrollTop = y;
     this.shadowRoot.querySelectorAll("input[type=range]").forEach((t) => t.style.setProperty("--p", ((t.value - t.min) / (t.max - t.min)) * 100 + "%"));
+    this._mountRtc();
     this._placeDock();
   }
 
@@ -799,7 +922,7 @@ class ArControlPanel extends HTMLElement {
     const e = es[i];
     const s = this.st(e);
     const a = s.attributes;
-    const tabs = es.length > 1 ? `<div class="tabs">${es.map((x, k) => `<button class="tab ${k === i ? "on" : ""}" data-a="mus" data-v="${k}">${esc(this.name(x))}</button>`).join("")}</div>` : "";
+    const tabs = es.length > 1 ? `<div class="tabs">${es.map((x, k) => `<button class="tab ${k === i ? "on" : ""}" data-a="mus" data-v="${k}"${this.groupInfo(x) ? ' aria-description="Grouped"' : ""}>${this.groupInfo(x) ? `<span class="lk">${svg("link", 15)}</span>` : ""}${esc(this.name(x))}</button>`).join("")}</div>` : "";
     const playing = s.state === "playing";
     const off = s.state === "off" || s.state === "unavailable";
     const art = a.entity_picture ? `<img src="${esc(a.entity_picture)}" alt="">` : svg("music", 64, ' stroke-width="1.4"');
@@ -812,6 +935,7 @@ class ArControlPanel extends HTMLElement {
     return `${tabs}${seg}<div class="glass np"><div class="art">${art}</div>
       <div class="tt">${esc(a.media_title || (off ? "Off" : "Nothing playing"))}</div>
       <div class="ar">${esc(a.media_artist || a.media_album_name || this.name(e))}</div>
+      ${this._groupBox(e, es)}
       <div class="ctl">
         <button class="round" data-a="media" data-e="${esc(e)}" data-v="media_previous_track" aria-label="Previous">${svg("prev", 22)}</button>
         <button class="big" data-a="media" data-e="${esc(e)}" data-v="${off ? "power" : "media_play_pause"}" aria-label="${off ? "Turn on" : playing ? "Pause" : "Play"}">${svg(off ? "power" : playing ? "pause" : "play", 30)}</button>
@@ -819,6 +943,30 @@ class ArControlPanel extends HTMLElement {
       </div>
       ${vol != null ? `<div class="vol">${svg("music", 18)}<input type="range" min="0" max="100" value="${vol}" data-a="vol" data-e="${esc(e)}" aria-label="Volume"><button class="iconbtn" data-a="media" data-e="${esc(e)}" data-v="power" aria-label="Power">${svg("power", 18)}</button></div>` : ""}
     </div>`;
+  }
+
+  _groupBox(e, roomSpeakers) {
+    const g = this.groupInfo(e);
+    if (!g) return "";
+    const chip = (m) => {
+      const ms = this.st(m);
+      const k = roomSpeakers.indexOf(m);
+      const lead = g.kind === "sync" && m === g.leader;
+      const inner = `${ms && ms.state === "playing" ? '<span class="pl"></span>' : ""}${esc(this.name(m))}${lead ? "<i>lead</i>" : ""}`;
+      // a speaker in this room: tap to switch to it; otherwise its more-info
+      return k >= 0
+        ? `<button class="${m === e ? "me" : ""}" data-a="mus" data-v="${k}">${inner}</button>`
+        : `<button class="${m === e ? "me" : ""}" data-a="more" data-e="${esc(m)}">${inner}</button>`;
+    };
+    let head;
+    if (g.kind === "group") head = `Speaker group · ${g.members.length} speakers`;
+    else if (g.kind === "in") head = `Playing in ${this.name(g.leader)}`;
+    else if (g.leader === e) head = `Grouped · leading ${g.members.length - 1} other${g.members.length > 2 ? "s" : ""}`;
+    else head = `Grouped · playing with ${this.name(g.leader)}`;
+    const leave = g.kind === "sync" && this.canGroup(e)
+      ? `<button class="leave" data-a="unjoin" data-e="${esc(e)}">${g.leader === e ? "Ungroup" : "Leave group"}</button>`
+      : "";
+    return `<div class="grp" role="group" aria-label="Speaker group"><div class="gh">${svg("link", 16)}<span>${esc(head)}</span>${leave}</div><div class="gm">${g.members.map(chip).join("")}</div></div>`;
   }
 
   _library() {
@@ -863,15 +1011,22 @@ class ArControlPanel extends HTMLElement {
   }
 
   _cameras() {
-    const es = this.ents("cameras");
-    const p = this.panelCfg();
-    const first = es[0];
-    const hero = first
-      ? `<button class="camhero" data-a="more" data-e="${esc(first)}" aria-label="Open ${esc(this.name(first))} live"><img data-cam="${esc(first)}" src="${esc(this.camUrl(first))}" alt=""><span class="live"><i></i>LIVE</span><span class="cap">${esc(this.name(first))}<small>Tap for live view</small></span></button>`
+    const list = this.camList();
+    if (!list.length) return "";
+    const cur = list.find((c) => c.key === this._s.cam) || list[0];
+    const rtc = this.rtcOk();
+    let hero;
+    if (rtc) {
+      hero = `<div class="camname"><span class="live"><i></i>LIVE</span><span class="cn">${esc(cur.name)}</span>${cur.entity ? `<button class="iconbtn" data-a="more" data-e="${esc(cur.entity)}" aria-label="More about ${esc(cur.name)}">${svg("expand", 18)}</button>` : ""}</div><div class="camrtc" data-rtc="${esc(cur.key)}"></div>`;
+    } else if (cur.entity) {
+      hero = `<button class="camhero" data-a="more" data-e="${esc(cur.entity)}" aria-label="Open ${esc(cur.name)} live"><img data-cam="${esc(cur.entity)}" src="${esc(this.camUrl(cur.entity))}" alt=""><span class="live"><i></i>LIVE</span><span class="cap">${esc(cur.name)}<small>Tap for live view</small></span></button>`;
+    } else {
+      hero = `<div class="camhero"><span class="cap">${esc(cur.name)}</span></div><div class="note">${this.rtcWanted() ? "Install the <b>WebRTC Camera</b> integration (HACS) to watch RTSP cameras here." : "Turn on WebRTC in the card settings to watch RTSP cameras here."}</div>`;
+    }
+    const tiles = list.length > 1
+      ? `<div class="grid">${list.map((c) => `<button class="camsm ${c.key === cur.key ? "sel" : ""}" data-a="cam" data-v="${esc(c.key)}" aria-label="Show ${esc(c.name)}"${c.key === cur.key ? ' aria-current="true"' : ""}>${c.entity ? `<img data-cam="${esc(c.entity)}" src="${esc(this.camUrl(c.entity))}" alt="">` : `<span class="ph">${svg("cam", 30, ' stroke-width="1.5"')}</span>`}<span class="cap">${esc(c.name)}</span></button>`).join("")}</div>`
       : "";
-    const rest = es.slice(1).map((e) => `<button class="camsm" data-a="more" data-e="${esc(e)}" aria-label="Open ${esc(this.name(e))} live"><img data-cam="${esc(e)}" src="${esc(this.camUrl(e))}" alt=""><span class="cap">${esc(this.name(e))}</span></button>`).join("");
-    const rtsp = p && p.rtsp.length ? `<div class="note">${esc(p.rtsp.join(", "))}: these RTSP cameras play on the wall panel only. Add them to Home Assistant as cameras to see them here.</div>` : "";
-    return `${hero}${rest ? `<div class="grid">${rest}</div>` : ""}${rtsp}`;
+    return hero + tiles;
   }
 
   _security() {
@@ -976,7 +1131,14 @@ const LABELS = {
   cameras: "Cameras",
   security: "Security (alarm, locks, door and motion sensors)",
   utilities: "Utilities (geyser, pumps, plugs, fans)",
+  url: "RTSP link or go2rtc stream name",
+  webrtc: "Play cameras live with WebRTC (needs the WebRTC Camera integration)",
 };
+const RTSP_SCHEMA = [
+  { name: "name", selector: { text: {} } },
+  { name: "url", selector: { text: {} } },
+];
+const RTC_SCHEMA = [{ name: "webrtc", selector: { boolean: {} } }];
 const MODE_SCHEMA = [
   { name: "title", selector: { text: {} } },
   { name: "mode", selector: { select: { mode: "list", options: [
@@ -1054,7 +1216,8 @@ class ArControlPanelCardEditor extends HTMLElement {
   }
 
   _rooms() { return (this._cfg.rooms || []).filter((r) => r && typeof r === "object"); }
-  _shapeOf() { return this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().length : 0); }
+  _streams() { return Array.isArray(this._cfg.rtsp) ? this._cfg.rtsp.filter((r) => r && typeof r === "object") : []; }
+  _shapeOf() { return this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().length : 0) + ":" + this._streams().length; }
 
   _form(key, schema, data) {
     const f = document.createElement("ha-form");
@@ -1071,6 +1234,11 @@ class ArControlPanelCardEditor extends HTMLElement {
     if (key === "mode") return { title: c.title || "", mode: c.mode };
     if (key === "auto") return { areas: arr(c.areas), exclude: arr(c.exclude), light_switches: arr(c.light_switches), show_unassigned: c.show_unassigned !== false, whole_house: c.whole_house !== false };
     if (key === "house") return { cameras: arr(c.cameras), security: arr(c.security), utilities: arr(c.utilities), whole_house: c.whole_house !== false };
+    if (key === "rtc") return { webrtc: c.webrtc !== false };
+    if (key.indexOf("rtsp:") === 0) {
+      const r = this._streams()[Number(key.slice(5))] || {};
+      return { name: r.name || "", url: r.url || "" };
+    }
     const r = this._rooms()[Number(key.slice(5))] || {};
     const d = { name: r.name || "" };
     ROOM_FIELDS.forEach((k) => (d[k] = arr(r[k])));
@@ -1078,7 +1246,13 @@ class ArControlPanelCardEditor extends HTMLElement {
   }
   _feed() {
     this.shadowRoot.querySelectorAll("ha-form").forEach((f) => (f.data = this._data(f.getAttribute("data-k"))));
-    this.shadowRoot.querySelectorAll(".rhead b").forEach((b, i) => (b.textContent = (this._rooms()[i] || {}).name || "Room " + (i + 1)));
+    this.shadowRoot.querySelectorAll("ha-form").forEach((f) => {
+      const k = f.getAttribute("data-k");
+      const b = f.parentNode && f.parentNode.classList && f.parentNode.classList.contains("room") ? f.parentNode.querySelector(".rhead b") : null;
+      if (!b) return;
+      const i = Number(k.split(":")[1]);
+      b.textContent = k.indexOf("rtsp:") === 0 ? (this._streams()[i] || {}).name || "Camera " + (i + 1) : (this._rooms()[i] || {}).name || "Room " + (i + 1);
+    });
   }
 
   _changed(key, v) {
@@ -1089,6 +1263,12 @@ class ArControlPanelCardEditor extends HTMLElement {
         c.mode = v.mode;
         if (v.mode === "manual" && !this._rooms().length) this._prefill();
       }
+    } else if (key === "rtc") {
+      if (v.webrtc === false) c.webrtc = false; else delete c.webrtc;
+    } else if (key.indexOf("rtsp:") === 0) {
+      const list = this._streams();
+      list[Number(key.slice(5))] = { name: v.name || "", url: (v.url || "").trim() };
+      c.rtsp = list;
     } else if (key === "auto" || key === "house") {
       Object.keys(v).forEach((k) => {
         const val = v[k];
@@ -1132,6 +1312,33 @@ class ArControlPanelCardEditor extends HTMLElement {
     this._render();
   }
 
+  _stream(op, i) {
+    const list = this._streams();
+    if (op === "add") list.push({ name: "Camera " + (list.length + 1), url: "" });
+    else list.splice(i, 1);
+    if (list.length) this._cfg.rtsp = list; else delete this._cfg.rtsp;
+    this._shape = null;
+    this._emit();
+    this._render();
+  }
+
+  _camSection(root, add) {
+    add(`<div class="sec">RTSP cameras</div>`);
+    add(`<p class="hint">Cameras that aren't in Home Assistant. Paste the RTSP link (rtsp://user:pass@ip:554/...) or, to keep the password out of the dashboard, the name of a stream you've set up in WebRTC / go2rtc.</p>`);
+    this._streams().forEach((r, i) => {
+      const box = document.createElement("div");
+      box.className = "room";
+      box.innerHTML = `<div class="rhead"><b></b><button class="ib" title="Remove camera">✕</button></div>`;
+      box.querySelector("b").textContent = r.name || "Camera " + (i + 1);
+      box.querySelector("button").addEventListener("click", () => this._stream("del", i));
+      box.appendChild(this._form("rtsp:" + i, RTSP_SCHEMA, this._data("rtsp:" + i)));
+      root.appendChild(box);
+    });
+    add(`<button class="add" data-add="cam">+ Add an RTSP camera</button>`);
+    root.querySelector('[data-add="cam"]').addEventListener("click", () => this._stream("add"));
+    root.appendChild(this._form("rtc", RTC_SCHEMA, this._data("rtc")));
+  }
+
   _emit() {
     const out = Object.assign({}, this._cfg);
     if (out.mode === "areas" && !isManual(Object.assign({}, out, { mode: undefined }))) delete out.mode; // the default
@@ -1149,6 +1356,7 @@ class ArControlPanelCardEditor extends HTMLElement {
       add(`<div class="sec">Automatic rooms</div>`);
       add(`<p class="hint">Each Home Assistant area becomes a room. Choose "I pick my own rooms and entities" above to choose every light, AC, speaker and blind yourself.</p>`);
       root.appendChild(this._form("auto", AUTO_SCHEMA, this._data("auto")));
+      this._camSection(root, add);
       return;
     }
     add(`<div class="sec">Rooms</div>`);
@@ -1166,11 +1374,12 @@ class ArControlPanelCardEditor extends HTMLElement {
       box.appendChild(this._form("room:" + i, ROOM_SCHEMA, this._data("room:" + i)));
       root.appendChild(box);
     });
-    add(`<button class="add">+ Add a room</button>`);
-    root.querySelector(".add").addEventListener("click", () => this._room("add"));
+    add(`<button class="add" data-add="room">+ Add a room</button>`);
+    root.querySelector('[data-add="room"]').addEventListener("click", () => this._room("add"));
     add(`<div class="sec">Whole house</div>`);
     add(`<p class="hint">These show on their own pages for the whole home.</p>`);
     root.appendChild(this._form("house", HOUSE_SCHEMA, this._data("house")));
+    this._camSection(root, add);
   }
 }
 
