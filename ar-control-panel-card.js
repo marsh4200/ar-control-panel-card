@@ -436,6 +436,9 @@ class ArControlPanel extends HTMLElement {
   st(e) { return (this._hass && this._hass.states[e]) || null; }
   has(e) { return !!this.st(e); }
   name(e) {
+    // names: { light.x: "Pendant" } - your own name for an entity, set in the card editor
+    const own = this._config && this._config.names && this._config.names[e];
+    if (typeof own === "string" && own.trim()) return own.trim();
     const s = this.st(e);
     return (s && s.attributes.friendly_name) || e.split(".")[1].replace(/_/g, " ");
   }
@@ -1284,6 +1287,8 @@ const LABELS = {
   group_lights: "Lights in this group",
   webrtc: "Play cameras live with WebRTC (needs the WebRTC Camera integration)",
 };
+// One text box per light, labelled with its Home Assistant name. Empty = keep that name.
+const NAME_HINT = "Optional: type a different name to show on the card. Leave empty to keep the Home Assistant name.";
 const RTSP_SCHEMA = [
   { name: "name", selector: { text: {} } },
   { name: "url", selector: { text: {} } },
@@ -1334,6 +1339,9 @@ const EDITOR_CSS = `
 .ib:disabled{opacity:.35;cursor:default}
 .room .room{margin:8px 0 0;padding:8px 10px 10px;background:rgba(127,127,127,.06)}
 .sub{margin-top:6px;height:38px;font-size:13px}
+.names{margin-top:10px;border-top:1px solid var(--divider-color,#444);padding-top:8px}
+.names summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--primary-text-color);padding:6px 0}
+.names .hint{margin:4px 0 8px}
 .add{margin-top:6px;width:100%;height:44px;border-radius:12px;border:1px dashed var(--primary-color);background:none;color:var(--primary-color);font:inherit;font-weight:600;cursor:pointer}
 `;
 
@@ -1376,6 +1384,42 @@ class ArControlPanelCardEditor extends HTMLElement {
   _lgs(i) { const r = this._rooms()[i] || {}; return (Array.isArray(r.light_groups) ? r.light_groups : []).filter((g) => g && typeof g === "object"); }
   _shapeOf() { return this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().map((r, i) => this._lgs(i).length).join(",") + "/" + this._rooms().length : 0) + ":" + this._streams().length; }
 
+  // The lights that can be renamed: a room's lights and its groups' lights
+  // ("nm:3"), or in automatic mode every light the card found ("nm:auto").
+  _nameIds(key) {
+    if (key === "nm:auto") {
+      const h = this._hass;
+      if (!h || !h.states) return [];
+      const L = autoLayout(h, this._cfg);
+      return uniq([].concat.apply([], L.rooms.map((r) => r.lights)));
+    }
+    const r = this._rooms()[Number(key.slice(3))] || {};
+    return uniq(arr(r.lights).concat([].concat.apply([], this._lgs(Number(key.slice(3))).map((g) => arr(g.lights)))));
+  }
+  _nameSchema(key) { return this._nameIds(key).map((e) => ({ name: e, selector: { text: {} } })); }
+  _nameData(key) {
+    const n = this._cfg.names || {};
+    const d = {};
+    this._nameIds(key).forEach((e) => (d[e] = typeof n[e] === "string" ? n[e] : ""));
+    return d;
+  }
+  _nameBox(key) {
+    const box = document.createElement("details");
+    box.className = "names";
+    box.innerHTML = `<summary>✏️ Rename lights (optional)</summary><p class="hint"></p>`;
+    box.querySelector("p").textContent = NAME_HINT;
+    const f = this._form(key, this._nameSchema(key), this._nameData(key));
+    f.computeLabel = (s) => (this._hass ? friendly(this._hass, s.name) : s.name);
+    f.computeHelper = (s) => s.name;
+    box.appendChild(f);
+    const none = document.createElement("p");
+    none.className = "hint none";
+    none.textContent = "Pick some lights above first.";
+    box.appendChild(none);
+    none.hidden = this._nameIds(key).length > 0;
+    return box;
+  }
+
   _form(key, schema, data) {
     const f = document.createElement("ha-form");
     f.hass = this._hass;
@@ -1407,9 +1451,22 @@ class ArControlPanelCardEditor extends HTMLElement {
     return d;
   }
   _feed() {
-    this.shadowRoot.querySelectorAll("ha-form").forEach((f) => (f.data = this._data(f.getAttribute("data-k"))));
     this.shadowRoot.querySelectorAll("ha-form").forEach((f) => {
       const k = f.getAttribute("data-k");
+      if (k.indexOf("nm:") === 0) {
+        // the list of lights may have changed: give the rename box its new rows
+        const ids = this._nameIds(k);
+        if (ids.join() !== f.schema.map((s) => s.name).join()) f.schema = this._nameSchema(k);
+        f.data = this._nameData(k);
+        const none = f.parentNode && f.parentNode.querySelector(".none");
+        if (none) none.hidden = ids.length > 0;
+        return;
+      }
+      f.data = this._data(k);
+    });
+    this.shadowRoot.querySelectorAll("ha-form").forEach((f) => {
+      const k = f.getAttribute("data-k");
+      if (k.indexOf("nm:") === 0) return;
       const b = f.parentNode && f.parentNode.classList && f.parentNode.classList.contains("room") ? f.parentNode.querySelector(".rhead b") : null;
       if (!b) return;
       const i = Number(k.split(":")[1]);
@@ -1424,6 +1481,16 @@ class ArControlPanelCardEditor extends HTMLElement {
 
   _changed(key, v) {
     const c = this._cfg;
+    if (key.indexOf("nm:") === 0) {
+      const names = Object.assign({}, c.names);
+      this._nameIds(key).forEach((e) => {
+        const t = typeof v[e] === "string" ? v[e] : "";
+        if (t.trim()) names[e] = t; else delete names[e];
+      });
+      if (Object.keys(names).length) c.names = names; else delete c.names;
+      this._emit();
+      return;
+    }
     if (key === "mode") {
       if (v.title) c.title = v.title; else delete c.title;
       if (v.mode !== c.mode) {
@@ -1544,6 +1611,7 @@ class ArControlPanelCardEditor extends HTMLElement {
       add(`<div class="sec">Automatic rooms</div>`);
       add(`<p class="hint">Each Home Assistant area becomes a room. Choose "I pick my own rooms and entities" above to choose every light, AC, speaker and blind yourself.</p>`);
       root.appendChild(this._form("auto", AUTO_SCHEMA, this._data("auto")));
+      root.appendChild(this._nameBox("nm:auto"));
       this._camSection(root, add);
       return;
     }
@@ -1575,6 +1643,7 @@ class ArControlPanelCardEditor extends HTMLElement {
       addg.textContent = "+ Add a light group (e.g. Downlights)";
       addg.addEventListener("click", () => this._lg("add", i));
       box.appendChild(addg);
+      box.appendChild(this._nameBox("nm:" + i));
       root.appendChild(box);
     });
     add(`<button class="add" data-add="room">+ Add a room</button>`);

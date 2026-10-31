@@ -81,6 +81,16 @@ rooms:
 
 Home Assistant's own light groups (Settings > Helpers > Group > Light group) open into their lights the same way, in both modes. On **Whole house**, groups are named with their room ("Lounge · Downlights").
 
+### Rename lights
+
+A light can show on the card with a different name from the one it has in Home Assistant (e.g. *Shelly Dimmer 2* → *Dining Pendant*). In the editor, inside a room, open **✏️ Rename lights (optional)**: there's a box for each of that room's lights (including the lights in its groups). Type the name you want, or leave it empty to keep the Home Assistant name. In automatic mode the same box lists every light the card found. Nothing changes in Home Assistant itself. In YAML:
+
+```yaml
+names:
+  light.shelly_dimmer_2: Dining Pendant
+  switch.sonoff_4ch_1: Patio Lights
+```
+
 ### Whole house: lights sorted by room
 
 Choose **Whole house** and open **Lights**: every light is listed under its room's name (Dining, Kitchen, Lounge…), with the room's light groups inside it. Each room heading shows how many are on and has its own switch for all that room's lights; tap a room's name to fold it away.
