@@ -81,6 +81,26 @@ rooms:
 
 Home Assistant's own light groups (Settings > Helpers > Group > Light group) open into their lights the same way, in both modes. On **Whole house**, groups are named with their room ("Lounge · Downlights").
 
+### Drag rooms and lights into order
+
+In the editor, grab the **⠿** handle and drag. This works with a mouse and with your finger on a phone, and a focused handle also moves with the ↑ ↓ arrow keys.
+
+- **Room order:** drag a room up or down the list at the top of *Rooms*. The room picker on the card and the Whole house page follow this order.
+- **Order of lights:** inside each room, drag its lights and light groups. For example, put *Downlights* first, then *Toilet light*. Groups and single lights can be mixed in any order. Until you drag anything, groups come first.
+
+In automatic mode the room list is under **Order**, and each room's lights are under **↕ Order of lights in each room**. In YAML:
+
+```yaml
+# I pick my own rooms: the rooms list is the order; each room has light_order
+rooms:
+  - name: Bathroom
+    light_order: [group:Downlights, light.toilet]
+# Automatic mode: by area id ("_other" is the Other room)
+room_order: [bathroom, kitchen, lounge]
+light_order:
+  bathroom: [light.downlights, light.toilet]
+```
+
 ### Rename lights
 
 A light can show on the card with a different name from the one it has in Home Assistant (e.g. *Shelly Dimmer 2* → *Dining Pendant*). In the editor, inside a room, open **✏️ Rename lights (optional)**: there's a box for each of that room's lights (including the lights in its groups). Type the name you want, or leave it empty to keep the Home Assistant name. In automatic mode the same box lists every light the card found. Nothing changes in Home Assistant itself. In YAML:

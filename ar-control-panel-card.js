@@ -248,6 +248,34 @@ const friendly = (h, id) => {
   const s = h.states[id];
   return (s && s.attributes.friendly_name) || id.split(".")[1].replace(/_/g, " ");
 };
+// Put things in the order you dragged them into. Anything not in `order` keeps
+// its usual place, after the ones you ordered.
+const byOrder = (items, order, keyOf) => {
+  const pos = new Map(arr(order).map((k, i) => [k, i]));
+  return items
+    .map((x, i) => [x, pos.has(keyOf(x)) ? pos.get(keyOf(x)) : 1e6 + i])
+    .sort((a, b) => a[1] - b[1])
+    .map((p) => p[0]);
+};
+// What a room's Lights page lists, in order: light groups (key "group:<name>"
+// for ones set up in the card, the entity for Home Assistant light groups)
+// and the lights on their own (key: the entity).
+function roomLightItems(h, lights, cardGroups, order, nameOf) {
+  const S = h.states;
+  const has = (e) => !!S[e];
+  const es = arr(lights).filter(has);
+  const groups = (cardGroups || []).map((g) => ({ key: "group:" + g.name, id: g.id, name: g.name, ids: arr(g.lights).filter(has) }));
+  es.forEach((e) => {
+    const m = arr(S[e].attributes.entity_id).filter((x) => has(x) && x !== e);
+    if (e.indexOf("light.") === 0 && m.length) groups.push({ key: e, id: "ha:" + e, name: nameOf(e), ids: m, entity: e });
+  });
+  const gs = groups.filter((g) => g.ids.length);
+  const inGroup = new Set();
+  gs.forEach((g) => { g.ids.forEach((e) => inGroup.add(e)); if (g.entity) inGroup.add(g.entity); });
+  const loose = es.filter((e) => !inGroup.has(e));
+  const items = byOrder(gs.map((g) => ({ key: g.key, g })).concat(loose.map((e) => ({ key: e, e }))), order, (x) => x.key);
+  return { groups: gs, loose, items };
+}
 
 // Manual: exactly what was picked in the card editor.
 function manualLayout(h, cfg) {
@@ -261,6 +289,7 @@ function manualLayout(h, cfg) {
       return Object.assign(blankRoom(r.name || "Room " + (i + 1)), {
         lights: uniq(arr(r.lights).concat([].concat.apply([], groups.map((g) => g.lights)))),
         climate: arr(r.climate), music: arr(r.music), shades: arr(r.shades), scenes: arr(r.scenes), groups,
+        order: arr(r.light_order),
       });
     });
   const security = arr(cfg.security);
@@ -326,6 +355,12 @@ function autoLayout(h, cfg) {
     rooms = pick.map((w) => rooms.find((r) => r.area_id === w || r.name.toLowerCase() === String(w).toLowerCase())).filter(Boolean);
   }
   if (has(other) && cfg.show_unassigned !== false) rooms.push(other);
+  // Dragged into order in the card editor: rooms (room_order) and the lights
+  // inside each room (light_order, per room). Rooms are keyed by area id.
+  rooms.forEach((r) => (r.key = r.area_id || "_other"));
+  rooms = byOrder(rooms, cfg.room_order, (r) => r.key);
+  const lo = cfg.light_order && typeof cfg.light_order === "object" && !Array.isArray(cfg.light_order) ? cfg.light_order : {};
+  rooms.forEach((r) => (r.order = arr(lo[r.key])));
   return Object.assign({ rooms }, house);
 }
 
@@ -944,25 +979,19 @@ class ArControlPanel extends HTMLElement {
   // own light groups (a light whose `entity_id` lists its members).
   lightGroups(es, room) {
     const r = room || this.room();
-    const out = ((r && r.groups) || []).map((g) => ({ id: g.id, name: g.name, ids: g.lights.filter((e) => this.has(e)) }));
-    es.forEach((e) => {
-      const m = arr(this.st(e).attributes.entity_id).filter((x) => this.has(x) && x !== e);
-      if (e.indexOf("light.") === 0 && m.length) out.push({ id: "ha:" + e, name: this.name(e), ids: m, entity: e });
-    });
-    return out.filter((g) => g.ids.length);
+    return roomLightItems(this._hass, es, r && r.groups, r && r.order, (e) => this.name(e)).groups;
   }
 
   _lights() {
     this._groups = {};
     const open = this._s.open || {};
-    // One room's lights: its light groups, then the lights on their own.
+    // One room's lights: its light groups and the lights on their own, in the
+    // order set in the card editor (groups first if none was set).
     const split = (es, room) => {
-      const groups = this.lightGroups(es, room);
-      const inGroup = new Set();
-      groups.forEach((g) => { this._groups[g.id] = g; g.ids.forEach((e) => inGroup.add(e)); if (g.entity) inGroup.add(g.entity); });
-      const loose = es.filter((e) => !inGroup.has(e));
-      const every = uniq(loose.concat([].concat.apply([], groups.map((g) => g.ids))));
-      return { groups, loose, every };
+      const b = roomLightItems(this._hass, es, room && room.groups, room && room.order, (e) => this.name(e));
+      b.groups.forEach((g) => (this._groups[g.id] = g));
+      b.every = uniq(b.loose.concat([].concat.apply([], b.groups.map((g) => g.ids))));
+      return b;
     };
 
     const tile = (e) => {
@@ -1004,7 +1033,19 @@ class ArControlPanel extends HTMLElement {
         ${isOpen ? `<div class="lgl">${g.ids.map(row).join("")}</div>` : ""}
       </div>`;
     };
-    const block = (b) => `${b.groups.length ? `<div class="lgs">${b.groups.map(card).join("")}</div>` : ""}${b.loose.length ? `<div class="grid">${b.loose.map(tile).join("")}</div>` : ""}`;
+    // Groups are full-width cards, single lights sit two to a row: lay out each
+    // run of the same kind together, in order.
+    const block = (b) => {
+      const runs = [];
+      b.items.forEach((x) => {
+        const kind = x.g ? "g" : "l";
+        if (!runs.length || runs[runs.length - 1].kind !== kind) runs.push({ kind, list: [] });
+        runs[runs.length - 1].list.push(x);
+      });
+      return runs.map((r) => r.kind === "g"
+        ? `<div class="lgs">${r.list.map((x) => card(x.g)).join("")}</div>`
+        : `<div class="grid">${r.list.map((x) => tile(x.e)).join("")}</div>`).join("");
+    };
     const bar = (n, total) => `<div class="bar"><div class="lbl">${n} of ${total} on</div><button class="act on" data-a="all" data-v="lights" data-on="1">All on</button><button class="act" data-a="all" data-v="lights" data-on="0">All off</button></div>`;
     const cur = this.room();
 
@@ -1339,6 +1380,16 @@ const EDITOR_CSS = `
 .ib:disabled{opacity:.35;cursor:default}
 .room .room{margin:8px 0 0;padding:8px 10px 10px;background:rgba(127,127,127,.06)}
 .sub{margin-top:6px;height:38px;font-size:13px}
+.olabel{margin:14px 0 0;font-size:13px;font-weight:600;color:var(--primary-text-color)}
+.olabel span{font-weight:400;color:var(--secondary-text-color)}
+.sort{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.sort .hint{margin:4px 0}
+.sort li{display:flex;align-items:center;gap:4px;min-height:44px;padding-right:10px;border:1px solid var(--divider-color,#444);border-radius:10px;background:var(--card-background-color,#1c1c1c);font-size:14px;color:var(--primary-text-color);user-select:none;-webkit-user-select:none}
+.sort li.drag{position:relative;z-index:2;border-color:var(--primary-color);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.sort .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sort .k{flex:none;font-size:12px;color:var(--secondary-text-color)}
+.grip{flex:none;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:0;background:none;color:var(--secondary-text-color);font-size:20px;cursor:grab;touch-action:none}
+.sort li.drag .grip{cursor:grabbing;color:var(--primary-color)}
 .names{margin-top:10px;border-top:1px solid var(--divider-color,#444);padding-top:8px}
 .names summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--primary-text-color);padding:6px 0}
 .names .hint{margin:4px 0 8px}
@@ -1351,6 +1402,7 @@ class ArControlPanelCardEditor extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._cfg = {};
     this._shape = null;
+    this._wireSort(this.shadowRoot);
   }
   setConfig(config) {
     this._cfg = JSON.parse(JSON.stringify(config || {}));
@@ -1364,6 +1416,7 @@ class ArControlPanelCardEditor extends HTMLElement {
     this._hass = h;
     if (!this._shape) this._render();
     this.shadowRoot.querySelectorAll("ha-form").forEach((f) => (f.hass = h));
+    this._refreshSorts();
   }
   connectedCallback() { this._ensure(); }
 
@@ -1418,6 +1471,170 @@ class ArControlPanelCardEditor extends HTMLElement {
     box.appendChild(none);
     none.hidden = this._nameIds(key).length > 0;
     return box;
+  }
+
+  // --- drag to reorder: rooms ("rooms"), a room's lights ("lo:3"), or in
+  // automatic mode an area's lights ("la:<area id>") ---------------------------------
+  _nm(e) {
+    const own = this._cfg.names && this._cfg.names[e];
+    return typeof own === "string" && own.trim() ? own.trim() : friendly(this._hass, e);
+  }
+  _autoRooms() {
+    const h = this._hass;
+    return h && h.states ? autoLayout(h, this._cfg).rooms : [];
+  }
+  _orderItems(okey) {
+    const h = this._hass;
+    if (!h || !h.states) return [];
+    const lightRow = (x) => (x.g
+      ? { key: x.key, label: x.g.name, note: (x.g.entity ? "HA group · " : "Group · ") + x.g.ids.length + (x.g.ids.length === 1 ? " light" : " lights"), group: true }
+      : { key: x.key, label: this._nm(x.e) });
+    if (okey === "rooms") {
+      return this._cfg.mode === "manual"
+        ? this._rooms().map((r, i) => ({ key: String(i), label: r.name || "Room " + (i + 1) }))
+        : this._autoRooms().map((r) => ({ key: r.key, label: r.name }));
+    }
+    if (okey.indexOf("lo:") === 0) {
+      const i = Number(okey.slice(3));
+      const r = this._rooms()[i] || {};
+      const gs = this._lgs(i).map((g, j) => ({ id: i + ":" + j, name: g.name || "Group " + (j + 1), lights: arr(g.lights) }));
+      const lights = uniq(arr(r.lights).concat([].concat.apply([], gs.map((g) => g.lights))));
+      return roomLightItems(h, lights, gs, r.light_order, (e) => this._nm(e)).items.map(lightRow);
+    }
+    if (okey.indexOf("la:") === 0) {
+      const r = this._autoRooms().find((x) => x.key === okey.slice(3));
+      return r ? roomLightItems(h, r.lights, [], r.order, (e) => this._nm(e)).items.map(lightRow) : [];
+    }
+    return [];
+  }
+  _setOrder(okey, keys) {
+    const c = this._cfg;
+    if (okey === "rooms" && c.mode === "manual") {
+      const rooms = this._rooms();
+      c.rooms = keys.map((k) => rooms[Number(k)]).filter(Boolean);
+      this._shape = null; // the room boxes move too: redraw
+      this._emit();
+      this._render();
+      return;
+    }
+    if (okey === "rooms") c.room_order = keys;
+    else if (okey.indexOf("lo:") === 0) {
+      const i = Number(okey.slice(3));
+      const rooms = this._rooms();
+      rooms[i] = Object.assign({}, rooms[i], { light_order: keys });
+      c.rooms = rooms;
+    } else if (okey.indexOf("la:") === 0) {
+      c.light_order = Object.assign({}, c.light_order && typeof c.light_order === "object" ? c.light_order : {}, { [okey.slice(3)]: keys });
+    }
+    this._emit();
+  }
+  _sortList(okey) {
+    const ul = document.createElement("ul");
+    ul.className = "sort";
+    ul.setAttribute("data-o", okey);
+    this._fillSort(ul);
+    return ul;
+  }
+  _fillSort(ul) {
+    const items = this._orderItems(ul.getAttribute("data-o"));
+    const sig = JSON.stringify(items);
+    if (ul._sig === sig) return;
+    ul._sig = sig;
+    ul.innerHTML = "";
+    if (!items.length) {
+      ul.innerHTML = `<p class="hint">Pick some lights above first.</p>`;
+      return;
+    }
+    items.forEach((it) => {
+      const li = document.createElement("li");
+      li.setAttribute("data-key", it.key);
+      li.innerHTML = `<button class="grip" type="button" title="Drag to move">⠿</button><span class="t"></span><span class="k"></span>`;
+      li.querySelector(".t").textContent = (it.group ? "💡 " : "") + it.label;
+      li.querySelector(".k").textContent = it.note || "";
+      li.querySelector(".grip").setAttribute("aria-label", "Move " + it.label + " (drag, or use the up and down arrow keys)");
+      ul.appendChild(li);
+    });
+  }
+  _refreshSorts() {
+    if (this._dragging) return; // never redraw a list under the finger
+    this.shadowRoot.querySelectorAll("ul.sort").forEach((ul) => this._fillSort(ul));
+    const box = this.shadowRoot.querySelector("[data-autolights]");
+    if (box) {
+      const rooms = this._autoRooms().filter((r) => r.lights.length);
+      const sig = rooms.map((r) => r.key + "=" + r.name).join("|");
+      if (box._sig !== sig) {
+        box._sig = sig;
+        box.innerHTML = "";
+        rooms.forEach((r) => {
+          const h = document.createElement("div");
+          h.className = "olabel";
+          h.textContent = r.name;
+          box.appendChild(h);
+          box.appendChild(this._sortList("la:" + r.key));
+        });
+        if (!rooms.length) box.innerHTML = `<p class="hint">No lights found yet.</p>`;
+      }
+    }
+  }
+  // Pointer events, so dragging works with a mouse and on a phone. The grip
+  // takes the touch (touch-action:none) so the rest of the list still scrolls.
+  _wireSort(root) {
+    const keysOf = (ul) => Array.from(ul.children).filter((x) => x.tagName === "LI").map((x) => x.getAttribute("data-key"));
+    root.addEventListener("pointerdown", (ev) => {
+      const grip = ev.target.closest && ev.target.closest(".grip");
+      if (!grip || (ev.button != null && ev.button > 0)) return;
+      const li = grip.parentNode;
+      const ul = li.parentNode;
+      ev.preventDefault();
+      const id = ev.pointerId;
+      const before = keysOf(ul).join("\n");
+      this._dragging = true;
+      li.classList.add("drag");
+      // Listen on the window: the row moves in the page while dragging, which
+      // would drop a pointer capture on the grip.
+      const move = (e) => {
+        if (e.pointerId !== id) return;
+        e.preventDefault();
+        const y = e.clientY;
+        let ref = null;
+        for (const s of Array.from(ul.children)) {
+          if (s === li || s.tagName !== "LI") continue;
+          const r = s.getBoundingClientRect();
+          if (y < r.top + r.height / 2) { ref = s; break; }
+        }
+        if (ref !== li.nextSibling && ref !== li) ul.insertBefore(li, ref);
+      };
+      const end = (e) => {
+        if (e && e.pointerId !== id) return;
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", end);
+        window.removeEventListener("pointercancel", end);
+        li.classList.remove("drag");
+        this._dragging = false;
+        const after = keysOf(ul);
+        if (after.join("\n") !== before) { ul._sig = null; this._setOrder(ul.getAttribute("data-o"), after); }
+      };
+      window.addEventListener("pointermove", move, { passive: false });
+      window.addEventListener("pointerup", end);
+      window.addEventListener("pointercancel", end);
+    });
+    root.addEventListener("keydown", (ev) => {
+      const grip = ev.target.closest && ev.target.closest(".grip");
+      if (!grip || (ev.key !== "ArrowUp" && ev.key !== "ArrowDown")) return;
+      ev.preventDefault();
+      const li = grip.parentNode;
+      const ul = li.parentNode;
+      const sib = ev.key === "ArrowUp" ? li.previousElementSibling : li.nextElementSibling;
+      if (!sib) return;
+      ul.insertBefore(li, ev.key === "ArrowUp" ? sib : sib.nextSibling);
+      grip.focus();
+      const okey = ul.getAttribute("data-o");
+      ul._sig = null;
+      this._setOrder(okey, keysOf(ul));
+      // after a redraw (rooms), put the focus back on the moved row
+      const again = this.shadowRoot.querySelector(`ul.sort[data-o="${okey}"] li:nth-child(${Array.from(ul.children).indexOf(li) + 1}) .grip`);
+      if (again) again.focus();
+    });
   }
 
   _form(key, schema, data) {
@@ -1477,6 +1694,7 @@ class ArControlPanelCardEditor extends HTMLElement {
       }
       b.textContent = k.indexOf("rtsp:") === 0 ? (this._streams()[i] || {}).name || "Camera " + (i + 1) : (this._rooms()[i] || {}).name || "Room " + (i + 1);
     });
+    this._refreshSorts();
   }
 
   _changed(key, v) {
@@ -1501,8 +1719,12 @@ class ArControlPanelCardEditor extends HTMLElement {
       const [, i, j] = key.split(":").map(Number);
       const rooms = this._rooms();
       const gs = this._lgs(i);
+      const was = (gs[j] || {}).name || "";
       gs[j] = { name: v.name || "", lights: arr(v.group_lights) };
       rooms[i] = Object.assign({}, rooms[i], { light_groups: gs });
+      // a renamed group keeps its place in the light order
+      if (was !== gs[j].name && arr(rooms[i].light_order).indexOf("group:" + was) >= 0)
+        rooms[i].light_order = arr(rooms[i].light_order).map((k) => (k === "group:" + was ? "group:" + gs[j].name : k));
       c.rooms = rooms;
     } else if (key === "rtc") {
       if (v.webrtc === false) c.webrtc = false; else delete c.webrtc;
@@ -1611,13 +1833,25 @@ class ArControlPanelCardEditor extends HTMLElement {
       add(`<div class="sec">Automatic rooms</div>`);
       add(`<p class="hint">Each Home Assistant area becomes a room. Choose "I pick my own rooms and entities" above to choose every light, AC, speaker and blind yourself.</p>`);
       root.appendChild(this._form("auto", AUTO_SCHEMA, this._data("auto")));
+      add(`<div class="sec">Order</div>`);
+      add(`<p class="hint">Drag ⠿ to put your rooms in the order you want.</p>`);
+      root.appendChild(this._sortList("rooms"));
+      const lo = document.createElement("details");
+      lo.className = "names";
+      lo.innerHTML = `<summary>↕ Order of lights in each room</summary><p class="hint">Drag ⠿ to move a light or light group up or down in its room.</p><div data-autolights></div>`;
+      root.appendChild(lo);
       root.appendChild(this._nameBox("nm:auto"));
       this._camSection(root, add);
+      this._refreshSorts();
       return;
     }
     add(`<div class="sec">Rooms</div>`);
-    add(`<p class="hint">Pick what's in each room from the dropdowns. Use the arrows to change the order.</p>`);
+    add(`<p class="hint">Pick what's in each room from the dropdowns.</p>`);
     const rooms = this._rooms();
+    if (rooms.length > 1) {
+      add(`<div class="olabel">Room order <span>· drag ⠿ to move</span></div>`);
+      root.appendChild(this._sortList("rooms"));
+    }
     rooms.forEach((r, i) => {
       const box = document.createElement("div");
       box.className = "room";
@@ -1643,6 +1877,11 @@ class ArControlPanelCardEditor extends HTMLElement {
       addg.textContent = "+ Add a light group (e.g. Downlights)";
       addg.addEventListener("click", () => this._lg("add", i));
       box.appendChild(addg);
+      const ol = document.createElement("div");
+      ol.className = "olabel";
+      ol.innerHTML = `Order of lights <span>· drag ⠿ to move</span>`;
+      box.appendChild(ol);
+      box.appendChild(this._sortList("lo:" + i));
       box.appendChild(this._nameBox("nm:" + i));
       root.appendChild(box);
     });
@@ -1652,6 +1891,7 @@ class ArControlPanelCardEditor extends HTMLElement {
     add(`<p class="hint">These show on their own pages for the whole home.</p>`);
     root.appendChild(this._form("house", HOUSE_SCHEMA, this._data("house")));
     this._camSection(root, add);
+    this._refreshSorts();
   }
 }
 
