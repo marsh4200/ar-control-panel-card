@@ -13,6 +13,7 @@ const CATS = [
   { key: "security", title: "Security", icon: "shield" },
   { key: "shades", title: "Shades", icon: "shades" },
   { key: "utilities", title: "Utilities", icon: "plug" },
+  { key: "garage", title: "Garage", icon: "garage" },
 ];
 const ROOM_KEYS = ["lights", "climate", "music", "shades", "scenes", "presence"];
 const WX = {
@@ -56,6 +57,8 @@ const P = {
   cloud: '<path d="M7 19h10a4 4 0 0 0 0-8 6 6 0 0 0-11.6 2A3 3 0 0 0 7 19z"/>',
   close: '<path d="M18 6L6 18M6 6l12 12"/>',
   link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  garage: '<path d="M2 21V9l10-6 10 6v12"/><path d="M6 21v-9h12v9M6 15h12M6 18h12"/>',
+  garageOpen: '<path d="M2 21V9l10-6 10 6v12"/><path d="M6 21v-9h12v9M6 14h12"/>',
   speaker: '<rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="14" r="4"/><path d="M12 6h.01"/>',
 };
 const svg = (n, size, extra) =>
@@ -237,6 +240,67 @@ input[type=range]:disabled{opacity:.35}
 .dots i.f{background:var(--acc)}
 .empty{margin-top:40px;text-align:center;font-size:15px;font-weight:600;color:rgba(var(--ink-rgb),.66);line-height:1.5;padding:0 20px}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);max-width:calc(100% - 32px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transform:translateX(-50%);padding:10px 16px;border-radius:999px;background:rgba(14,15,19,.9);border:1px solid var(--line);font-size:14px;font-weight:700;z-index:9}
+/* ---- garage doors: the door rolls up to show the garage inside ---- */
+.gds{margin-top:16px;display:flex;flex-direction:column;gap:14px}
+.gd{all:unset;box-sizing:border-box;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:100%;height:200px;border-radius:22px;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;color:#fff;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,.9);
+  --la:#00e676;--lb:#00c853;--lg:rgba(0,230,118,.5);--sc:#8ef0b0;
+  background:linear-gradient(180deg,#3a3d43,#202227) 50% 12px/46px 16px no-repeat,
+  linear-gradient(180deg,#2c2f34,#17181b) 50% 18px/38% 3px no-repeat,
+  linear-gradient(90deg,#d9a92c,#f0c64a,#d9a92c) 50% calc(100% - 11px)/32% 3px no-repeat,
+  linear-gradient(rgba(0,0,0,.65),rgba(0,0,0,.65)) 0 calc(100% - 30px)/100% 2px no-repeat,
+  linear-gradient(180deg,#2e2c27,#1b1a17) 0 100%/100% 30px no-repeat,
+  repeating-linear-gradient(180deg,#4a3e32 0 3px,rgba(0,0,0,.25) 3px 5px,transparent 5px 34px) 14px 44px/15% 108px no-repeat,
+  repeating-linear-gradient(180deg,#4a3e32 0 3px,rgba(0,0,0,.25) 3px 5px,transparent 5px 34px) calc(100% - 14px) 44px/15% 108px no-repeat,
+  radial-gradient(circle,rgba(255,255,255,.06) 1px,transparent 1.6px) 0 0/9px 9px,
+  linear-gradient(180deg,#1a1c20 0%,#0f1013 70%,#0a0b0d 100%);
+  box-shadow:0 20px 42px rgba(0,0,0,.55),0 4px 10px rgba(0,0,0,.4)}
+.gd.open,.gd.moving{background:radial-gradient(26px 9px at 50% 30px,rgba(255,244,220,1),transparent 75%),radial-gradient(190px 120px at 50% 20px,rgba(255,208,140,.42),transparent 72%),radial-gradient(55% 26px at 50% 100%,rgba(255,210,150,.18),transparent 80%),linear-gradient(180deg,#3a3d43,#202227) 50% 12px/46px 16px no-repeat,
+  linear-gradient(180deg,#2c2f34,#17181b) 50% 18px/38% 3px no-repeat,
+  linear-gradient(90deg,#d9a92c,#f0c64a,#d9a92c) 50% calc(100% - 11px)/32% 3px no-repeat,
+  linear-gradient(rgba(0,0,0,.65),rgba(0,0,0,.65)) 0 calc(100% - 30px)/100% 2px no-repeat,
+  linear-gradient(180deg,#2e2c27,#1b1a17) 0 100%/100% 30px no-repeat,
+  repeating-linear-gradient(180deg,#4a3e32 0 3px,rgba(0,0,0,.25) 3px 5px,transparent 5px 34px) 14px 44px/15% 108px no-repeat,
+  repeating-linear-gradient(180deg,#4a3e32 0 3px,rgba(0,0,0,.25) 3px 5px,transparent 5px 34px) calc(100% - 14px) 44px/15% 108px no-repeat,
+  radial-gradient(circle,rgba(255,255,255,.06) 1px,transparent 1.6px) 0 0/9px 9px,
+  linear-gradient(180deg,#1a1c20 0%,#0f1013 70%,#0a0b0d 100%);
+  --la:#ffb300;--lb:#ff8f00;--lg:rgba(255,179,0,.55);--sc:#ffd180}
+.gd.long{--la:#ff5252;--lb:#c62828;--lg:rgba(255,82,82,.6);--sc:#ff8a80;animation:gd-alert 2s ease-in-out infinite}
+.gd.dead,.gd.nos{--la:#8a8f96;--lb:#5c6066;--lg:rgba(140,145,150,.25);--sc:#9aa0a6}
+@keyframes gd-alert{0%,100%{box-shadow:0 20px 42px rgba(0,0,0,.55),0 0 0 0 rgba(255,82,82,0)}50%{box-shadow:0 20px 42px rgba(0,0,0,.55),0 0 0 3px rgba(255,82,82,.55),0 0 26px rgba(255,82,82,.45)}}
+.gd:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.gd.hit{filter:brightness(1.15)}
+.gd>*{position:relative;z-index:6;pointer-events:none}
+.gd::before{content:"";position:absolute;inset:0;z-index:2;
+  background:linear-gradient(180deg,#c3c8ce,#868b92 50%,#55595f) 50% calc(100% - 24px)/64px 7px no-repeat,
+  linear-gradient(180deg,#2d2f33,#0d0e0f) 0 100%/100% 7px no-repeat,
+  linear-gradient(90deg,transparent 0 10px,#0c1117 10px 11px,#22313f 11px,#3a5268 30%,#6d8eaa 36%,#3a5268 44%,#1c2833 calc(100% - 11px),rgba(255,255,255,.20) calc(100% - 11px) calc(100% - 10px),transparent calc(100% - 10px)) 0 14px/calc(100% / 6) 22px repeat-x,
+  linear-gradient(90deg,transparent 0 8px,rgba(255,255,255,.13) 8px 9px,transparent 9px calc(100% - 9px),rgba(0,0,0,.38) calc(100% - 9px) calc(100% - 8px),transparent calc(100% - 8px)) 0 10px/calc(100% / 6) 30px repeat-x,
+  linear-gradient(90deg,transparent 0 8px,rgba(255,255,255,.13) 8px 9px,transparent 9px calc(100% - 9px),rgba(0,0,0,.38) calc(100% - 9px) calc(100% - 8px),transparent calc(100% - 8px)) 0 60px/calc(100% / 6) 30px repeat-x,
+  linear-gradient(90deg,transparent 0 8px,rgba(255,255,255,.13) 8px 9px,transparent 9px calc(100% - 9px),rgba(0,0,0,.38) calc(100% - 9px) calc(100% - 8px),transparent calc(100% - 8px)) 0 110px/calc(100% / 6) 30px repeat-x,
+  linear-gradient(90deg,transparent 0 8px,rgba(255,255,255,.13) 8px 9px,transparent 9px calc(100% - 9px),rgba(0,0,0,.38) calc(100% - 9px) calc(100% - 8px),transparent calc(100% - 8px)) 0 160px/calc(100% / 6) 30px repeat-x,
+  linear-gradient(180deg,transparent 0 9px,rgba(255,255,255,.16) 9px 10px,rgba(255,255,255,.03) 10px 40px,rgba(0,0,0,.38) 40px 41px,transparent 41px) 0 0/100% 50px repeat-y,
+  linear-gradient(180deg,rgba(255,255,255,.14) 0 1px,transparent 1px calc(100% - 3px),rgba(0,0,0,.6) calc(100% - 3px)) 0 0/100% 50px repeat-y,
+  repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px),
+  linear-gradient(180deg,rgba(255,255,255,.07),transparent 40%,rgba(0,0,0,.25)),
+  linear-gradient(90deg,rgba(0,0,0,.38),transparent 12%,transparent 88%,rgba(0,0,0,.38)),
+  linear-gradient(180deg,#4a4f57,#383c43);
+  transform:translateY(0);transition:transform 3.6s cubic-bezier(.38,.02,.22,1);
+  box-shadow:inset 0 -10px 18px rgba(0,0,0,.35),0 10px 22px rgba(0,0,0,.6)}
+.gd.open::before{transform:translateY(calc(-100% + 16px))}
+.gd.was-open::before{transform:translateY(calc(-100% + 16px));transition:none}
+.gd.was-shut::before{transform:translateY(0);transition:none}
+.gd::after{content:"";position:absolute;inset:0;z-index:5;pointer-events:none;border-radius:22px;
+  background:radial-gradient(44px 14px at 50% 6px,var(--lg),transparent 72%) 0 0/100% 100% no-repeat,
+  linear-gradient(90deg,var(--la),var(--lb)) 50% 4px/34px 4px no-repeat,
+  linear-gradient(180deg,#1d1e21,#0f1012) 0 0/100% 9px no-repeat,
+  linear-gradient(90deg,#0b0c0e,#3a3d42 45%,#16171a) 0 0/7px 100% no-repeat,
+  linear-gradient(90deg,#16171a,#3a3d42 55%,#0b0c0e) 100% 0/7px 100% no-repeat;
+  box-shadow:inset 0 0 0 2px rgba(20,20,22,.95),inset 0 14px 22px rgba(0,0,0,.55),inset 0 -8px 16px rgba(0,0,0,.4)}
+.gdi{display:flex;margin-top:14px;opacity:.92;color:#fff;filter:drop-shadow(0 2px 6px rgba(0,0,0,.85));transition:color .6s ease}
+.gd.open .gdi{color:#ffd180}
+.gdn{font-size:21px;font-weight:800;letter-spacing:1px;line-height:1.2;max-width:calc(100% - 32px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gdl{font-size:11px;font-weight:800;letter-spacing:3px;color:var(--sc)}
+@media (prefers-reduced-motion:reduce){.gd::before{transition:none}.gd.long{animation:none;box-shadow:0 20px 42px rgba(0,0,0,.55),0 0 0 3px rgba(255,82,82,.55)}}
 @media (max-width:360px){.clock{font-size:44px}.grid{gap:10px}}
 `;
 
@@ -248,6 +312,14 @@ const friendly = (h, id) => {
   const s = h.states[id];
   return (s && s.attributes.friendly_name) || id.split(".")[1].replace(/_/g, " ");
 };
+// Garage doors: [{ entity, sensor, name }]. `entity` is what you tap (a
+// switch / relay, a cover, a button or a script); `sensor` (optional) is a
+// binary_sensor that says if the door is open. A plain entity id works too.
+const GD_TAP = ["switch", "cover", "button", "script", "input_boolean", "input_button"];
+const normGarage = (v) => (Array.isArray(v) ? v : v ? [v] : [])
+  .map((d) => (typeof d === "string" ? { entity: d } : d && typeof d === "object" ? d : null))
+  .filter((d) => d && typeof d.entity === "string" && d.entity)
+  .map((d) => ({ entity: d.entity, sensor: typeof d.sensor === "string" && d.sensor ? d.sensor : "", name: typeof d.name === "string" ? d.name : "", alert: Number(d.alert_minutes) > 0 ? Number(d.alert_minutes) : 10 }));
 // Put things in the order you dragged them into. Anything not in `order` keeps
 // its usual place, after the ones you ordered.
 const byOrder = (items, order, keyOf) => {
@@ -294,7 +366,7 @@ function manualLayout(h, cfg) {
     });
   const security = arr(cfg.security);
   security.sort((a, b) => (b.indexOf("alarm_control_panel.") === 0) - (a.indexOf("alarm_control_panel.") === 0));
-  return { rooms, cameras: arr(cfg.cameras), security, utilities: arr(cfg.utilities) };
+  return { rooms, cameras: arr(cfg.cameras), security, utilities: arr(cfg.utilities), garage: normGarage(cfg.garage) };
 }
 
 // Automatic: one room per Home Assistant area, entities sorted by domain.
@@ -309,7 +381,8 @@ function autoLayout(h, cfg) {
   const SEC_DC = ["door", "window", "garage_door", "opening", "motion", "occupancy", "presence", "smoke", "gas", "moisture", "safety", "tamper", "vibration", "lock"];
   const byArea = {};
   const other = blankRoom(cfg.unassigned_name || "Other");
-  const house = { cameras: [], security: [], utilities: [] };
+  const house = { cameras: [], security: [], utilities: [], garage: normGarage(cfg.garage) };
+  const gdTaken = new Set(house.garage.map((d) => d.entity));
   const areaOf = (id) => {
     const r = reg[id];
     if (!r) return null;
@@ -323,7 +396,7 @@ function autoLayout(h, cfg) {
     return byArea[a] || (byArea[a] = Object.assign(blankRoom(areas[a].name), { area_id: a }));
   };
   Object.keys(S).sort((a, b) => friendly(h, a).localeCompare(friendly(h, b))).forEach((id) => {
-    if (skip.has(id)) return;
+    if (skip.has(id) || gdTaken.has(id)) return; // a garage door's switch lives on the Garage page
     const r = reg[id];
     if (r && (r.hidden || r.entity_category)) return; // config/diagnostic and hidden entities stay out
     const st = S[id];
@@ -338,7 +411,8 @@ function autoLayout(h, cfg) {
       case "fan": case "water_heater": case "vacuum": case "humidifier": house.utilities.push(id); break;
       case "climate": roomFor(id).climate.push(id); break;
       case "media_player": roomFor(id).music.push(id); break;
-      case "cover": roomFor(id).shades.push(id); break;
+      // garage-door covers get the Garage page (unless you set them up yourself)
+      case "cover": if (dc === "garage") { if (!gdTaken.has(id)) house.garage.push({ entity: id, sensor: "", name: "", alert: 10 }); } else roomFor(id).shades.push(id); break;
       case "scene": roomFor(id).scenes.push(id); break;
       case "script": if (areaOf(id)) roomFor(id).scenes.push(id); break;
       case "camera": house.cameras.push(id); break;
@@ -366,7 +440,7 @@ function autoLayout(h, cfg) {
 
 function buildLayout(h, cfg) {
   const L = isManual(cfg) ? manualLayout(h, cfg) : autoLayout(h, cfg);
-  if (!L.rooms.length && (L.cameras.length || L.security.length || L.utilities.length || (Array.isArray(cfg.rtsp) && cfg.rtsp.length))) L.rooms.push(blankRoom("Home"));
+  if (!L.rooms.length && (L.cameras.length || L.security.length || L.utilities.length || L.garage.length || (Array.isArray(cfg.rtsp) && cfg.rtsp.length))) L.rooms.push(blankRoom("Home"));
   if (!L.rooms.length) return null;
   const rtsp = (Array.isArray(cfg.rtsp) ? cfg.rtsp : []).filter((r) => r && r.url).map((r, i) => ({ name: r.name || "Camera " + (i + 1), url: String(r.url) }));
   return Object.assign(L, { name: cfg.title || "Home", wholeHouse: cfg.whole_house !== false, start: 0, rtsp, music: {} });
@@ -414,6 +488,17 @@ class ArControlPanel extends HTMLElement {
     this.shadowRoot.addEventListener("change", (e) => this._change(e));
     this.shadowRoot.addEventListener("pointerdown", (e) => { if (e.target.type === "range") this._busy++; });
     this.shadowRoot.addEventListener("pointerup", () => setTimeout(() => (this._busy = Math.max(0, this._busy - 1)), 300));
+    // Hold a garage door for its details (like Home Assistant's hold action).
+    const stopHold = () => clearTimeout(this._holdT);
+    this.shadowRoot.addEventListener("pointerdown", (e) => {
+      const t = e.target.closest && e.target.closest("[data-hold]");
+      if (!t) return;
+      this._held = false;
+      stopHold();
+      this._holdT = setTimeout(() => { this._held = true; this.more(t.getAttribute("data-hold")); }, 550);
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach((n) => this.shadowRoot.addEventListener(n, stopHold));
+    this.shadowRoot.addEventListener("contextmenu", (e) => { if (e.target.closest && e.target.closest("[data-hold]")) e.preventDefault(); });
     this._loadRtc();
     this._onResize = () => this._placeDock();
     window.addEventListener("resize", this._onResize);
@@ -523,6 +608,7 @@ class ArControlPanel extends HTMLElement {
     const r = this.room();
     if (!p || !r) return [];
     if (cat === "music") return this.speakers();
+    if (cat === "garage") return this.doors().map((d) => d.entity);
     const src = cat === "cameras" || cat === "security" || cat === "utilities" ? p[cat] : r[cat];
     return (src || []).filter((e) => this.has(e));
   }
@@ -634,6 +720,26 @@ class ArControlPanel extends HTMLElement {
     const id = Object.keys(h.states).find((k) => k.indexOf("weather.") === 0);
     return id ? h.states[id] : null;
   }
+  doors() {
+    const p = this.panelCfg();
+    return ((p && p.garage) || []).filter((d) => this.has(d.entity) || this.has(d.sensor));
+  }
+  // Where a garage door is, from its sensor (or the cover itself).
+  doorState(d) {
+    const src = d.sensor && this.has(d.sensor) ? d.sensor : d.entity.indexOf("cover.") === 0 ? d.entity : "";
+    const s = src ? this.st(src) : null;
+    if (!src) return { kind: "nos", open: false, label: "TAP TO OPEN / CLOSE" };
+    if (!s || s.state === "unavailable" || s.state === "unknown") return { kind: "dead", open: false, label: "UNAVAILABLE" };
+    const st = s.state;
+    const open = st === "on" || st === "open" || st === "opening";
+    const since = (Date.now() - new Date(s.last_changed).getTime()) / 1000;
+    const ago = (t) => (t < 60 ? "JUST NOW" : t < 3600 ? Math.floor(t / 60) + " MIN" : t < 86400 ? Math.floor(t / 3600) + " H" : Math.floor(t / 86400) + (t < 172800 ? " DAY" : " DAYS"));
+    if (st === "opening") return { kind: "open", open: true, label: "OPENING…" };
+    if (st === "closing") return { kind: "moving", open: false, label: "CLOSING…" };
+    if (!open) return { kind: "shut", open: false, label: "CLOSED" };
+    const long = since > d.alert * 60;
+    return { kind: long ? "long" : "open", open: true, label: "OPEN · " + ago(since) };
+  }
   alarm() {
     return this.ents("security").find((e) => e.indexOf("alarm_control_panel.") === 0) || null;
   }
@@ -709,6 +815,12 @@ class ArControlPanel extends HTMLElement {
       const st = this.st(a).state;
       return { s: this.alarmName(st), warn: st === "triggered", ok: st === "disarmed" };
     }
+    if (cat === "garage") {
+      const st = this.doors().map((d) => this.doorState(d));
+      const n = st.filter((x) => x.open).length;
+      if (!n) return { s: st.length === 1 ? (st[0].kind === "shut" ? "Closed" : st[0].kind === "dead" ? "Unavailable" : st[0].kind === "moving" ? "Closing…" : "Tap to open") : "All closed", ok: st.some((x) => x.kind === "shut") && !st.some((x) => x.kind === "dead") };
+      return { s: st.length === 1 ? "Open" : `${n} of ${st.length} open`, warn: st.some((x) => x.kind === "long"), lit: true };
+    }
     if (cat === "utilities") {
       const n = es.filter((e) => this.isOn(e)).length;
       return { s: n ? `${n} running` : "All off", lit: n > 0 };
@@ -744,6 +856,18 @@ class ArControlPanel extends HTMLElement {
         break;
       }
       case "toggle": this.call("homeassistant", "toggle", { entity_id: e }); break;
+      case "gd": {
+        if (this._held) { this._held = false; break; } // that was a hold: details already open
+        const d = e.split(".")[0];
+        if (d === "cover") this.call("cover", "toggle", { entity_id: e });
+        else if (d === "button" || d === "input_button") this.call(d, "press", { entity_id: e });
+        else if (d === "script") this.call("script", "turn_on", { entity_id: e });
+        else this.call("homeassistant", "toggle", { entity_id: e });
+        b.classList.add("hit");
+        setTimeout(() => b.classList.remove("hit"), 500);
+        this._say(v || "Garage door");
+        break;
+      }
       case "gopen": {
         const o = Object.assign({}, this._s.open || {});
         o[v] = !o[v];
@@ -903,7 +1027,24 @@ class ArControlPanel extends HTMLElement {
     if (nr) nr.scrollTop = y;
     this.shadowRoot.querySelectorAll("input[type=range]").forEach((t) => t.style.setProperty("--p", ((t.value - t.min) / (t.max - t.min)) * 100 + "%"));
     this._mountRtc();
+    this._animateDoors();
     this._placeDock();
+  }
+  // The page is redrawn from scratch, so start each door where it was last
+  // shown and let it roll to where it is now.
+  _animateDoors() {
+    const shown = this._gdShown || (this._gdShown = {});
+    const tiles = Array.from(this.shadowRoot.querySelectorAll("[data-gd]"));
+    tiles.forEach((el) => {
+      const k = el.getAttribute("data-gd");
+      const now = el.getAttribute("data-open") === "1";
+      if (k in shown && shown[k] !== now) el.classList.add(shown[k] ? "was-open" : "was-shut");
+      shown[k] = now;
+    });
+    if (tiles.some((el) => el.classList.contains("was-open") || el.classList.contains("was-shut"))) {
+      void this.shadowRoot.host.offsetWidth;
+      requestAnimationFrame(() => tiles.forEach((el) => el.classList.remove("was-open", "was-shut")));
+    }
   }
 
   // Centre the bottom bar on the card itself (not the whole screen), so it
@@ -1259,6 +1400,22 @@ class ArControlPanel extends HTMLElement {
     return `${top}${items ? `<div class="list">${items}</div>` : ""}`;
   }
 
+  _garage() {
+    const ds = this.doors();
+    if (!ds.length) return `<div class="empty">No garage doors yet. Add one in the card settings.</div>`;
+    return `<div class="gds">${ds.map((d) => {
+      const st = this.doorState(d);
+      const nm = (d.name && d.name.trim()) || this.name(d.entity);
+      const cls = st.kind === "long" ? "open long" : st.kind;
+      return `<button class="gd ${cls}" data-a="gd" data-e="${esc(d.entity)}" data-v="${esc(nm)}" data-hold="${esc(d.sensor && this.has(d.sensor) ? d.sensor : d.entity)}" data-gd="${esc(d.entity)}" data-open="${st.open ? 1 : 0}"
+        aria-label="${esc(nm)}, ${esc(st.label.toLowerCase())}. Tap to ${st.open ? "close" : "open"}, hold for details.">
+        <span class="gdi">${svg(st.open ? "garageOpen" : "garage", 44, ' stroke-width="1.7"')}</span>
+        <span class="gdn">${esc(nm.toUpperCase())}</span>
+        <span class="gdl">${esc(st.label)}</span>
+      </button>`;
+    }).join("")}</div>`;
+  }
+
   _utilities() {
     const es = this.ents("utilities");
     return `<div class="bar"><div class="lbl">${es.filter((e) => this.isOn(e)).length} running</div><button class="act" data-a="all" data-v="util" data-on="0">All off</button></div><div class="grid">${es
@@ -1327,7 +1484,15 @@ const LABELS = {
   url: "RTSP link or go2rtc stream name",
   group_lights: "Lights in this group",
   webrtc: "Play cameras live with WebRTC (needs the WebRTC Camera integration)",
+  gd_name: "Name on the tile (optional)",
+  gd_entity: "What opens and closes it (relay switch, cover, button or script)",
+  gd_sensor: "Door sensor that says open / closed (optional)",
 };
+const GD_SCHEMA = [
+  { name: "gd_name", selector: { text: {} } },
+  { name: "gd_entity", selector: { entity: { filter: { domain: GD_TAP } } } },
+  { name: "gd_sensor", selector: { entity: { filter: { domain: ["binary_sensor"] } } } },
+];
 // One text box per light, labelled with its Home Assistant name. Empty = keep that name.
 const NAME_HINT = "Optional: type a different name to show on the card. Leave empty to keep the Home Assistant name.";
 const RTSP_SCHEMA = [
@@ -1433,9 +1598,10 @@ class ArControlPanelCardEditor extends HTMLElement {
   }
 
   _rooms() { return (this._cfg.rooms || []).filter((r) => r && typeof r === "object"); }
+  _doors() { return Array.isArray(this._cfg.garage) ? this._cfg.garage.map((d) => (typeof d === "string" ? { entity: d } : d)).filter((d) => d && typeof d === "object") : []; }
   _streams() { return Array.isArray(this._cfg.rtsp) ? this._cfg.rtsp.filter((r) => r && typeof r === "object") : []; }
   _lgs(i) { const r = this._rooms()[i] || {}; return (Array.isArray(r.light_groups) ? r.light_groups : []).filter((g) => g && typeof g === "object"); }
-  _shapeOf() { return this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().map((r, i) => this._lgs(i).length).join(",") + "/" + this._rooms().length : 0) + ":" + this._streams().length; }
+  _shapeOf() { return this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().map((r, i) => this._lgs(i).length).join(",") + "/" + this._rooms().length : 0) + ":" + this._streams().length + ":" + this._doors().length; }
 
   // The lights that can be renamed: a room's lights and its groups' lights
   // ("nm:3"), or in automatic mode every light the card found ("nm:auto").
@@ -1658,6 +1824,10 @@ class ArControlPanelCardEditor extends HTMLElement {
       const g = this._lgs(i)[j] || {};
       return { name: g.name || "", group_lights: arr(g.lights) };
     }
+    if (key.indexOf("gd:") === 0) {
+      const d = this._doors()[Number(key.slice(3))] || {};
+      return { gd_name: d.name || "", gd_entity: d.entity || "", gd_sensor: d.sensor || "" };
+    }
     if (key.indexOf("rtsp:") === 0) {
       const r = this._streams()[Number(key.slice(5))] || {};
       return { name: r.name || "", url: r.url || "" };
@@ -1687,6 +1857,11 @@ class ArControlPanelCardEditor extends HTMLElement {
       const b = f.parentNode && f.parentNode.classList && f.parentNode.classList.contains("room") ? f.parentNode.querySelector(".rhead b") : null;
       if (!b) return;
       const i = Number(k.split(":")[1]);
+      if (k.indexOf("gd:") === 0) {
+        const d = this._doors()[i] || {};
+        b.textContent = "🚗 " + (d.name || (d.entity && this._hass ? friendly(this._hass, d.entity) : "") || "Garage door " + (i + 1));
+        return;
+      }
       if (k.indexOf("lg:") === 0) {
         const [, gi, gj] = k.split(":").map(Number);
         b.textContent = "💡 " + ((this._lgs(gi)[gj] || {}).name || "Group " + (gj + 1));
@@ -1728,6 +1903,15 @@ class ArControlPanelCardEditor extends HTMLElement {
       c.rooms = rooms;
     } else if (key === "rtc") {
       if (v.webrtc === false) c.webrtc = false; else delete c.webrtc;
+    } else if (key.indexOf("gd:") === 0) {
+      const list = this._doors();
+      const d = { entity: v.gd_entity || "" };
+      if (v.gd_sensor) d.sensor = v.gd_sensor;
+      if (v.gd_name) d.name = v.gd_name;
+      const old = list[Number(key.slice(3))] || {};
+      if (old.alert_minutes) d.alert_minutes = old.alert_minutes;
+      list[Number(key.slice(3))] = d;
+      c.garage = list;
     } else if (key.indexOf("rtsp:") === 0) {
       const list = this._streams();
       list[Number(key.slice(5))] = { name: v.name || "", url: (v.url || "").trim() };
@@ -1753,7 +1937,7 @@ class ArControlPanelCardEditor extends HTMLElement {
   // so nothing has to be added from scratch.
   _prefill() {
     const h = this._hass;
-    const L = h && h.states ? autoLayout(h, Object.assign({}, this._cfg, { rooms: [] })) : { rooms: [], cameras: [], security: [], utilities: [] };
+    const L = h && h.states ? autoLayout(h, Object.assign({}, this._cfg, { rooms: [] })) : { rooms: [], cameras: [], security: [], utilities: [], garage: [] };
     this._cfg.rooms = L.rooms.map((r) => {
       const o = { name: r.name };
       ROOM_FIELDS.forEach((k) => { if (r[k].length) o[k] = r[k].slice(); });
@@ -1761,6 +1945,7 @@ class ArControlPanelCardEditor extends HTMLElement {
     });
     if (!this._cfg.rooms.length) this._cfg.rooms = [{ name: "Lounge" }];
     ["cameras", "security", "utilities"].forEach((k) => { if (L[k].length) this._cfg[k] = L[k].slice(); });
+    if (!this._cfg.garage && L.garage && L.garage.length) this._cfg.garage = L.garage.map((d) => ({ entity: d.entity }));
   }
 
   _room(op, i) {
@@ -1797,6 +1982,31 @@ class ArControlPanelCardEditor extends HTMLElement {
     this._shape = null;
     this._emit();
     this._render();
+  }
+
+  _door(op, i) {
+    const list = this._doors();
+    if (op === "add") list.push({ entity: "" });
+    else list.splice(i, 1);
+    if (list.length) this._cfg.garage = list; else delete this._cfg.garage;
+    this._shape = null;
+    this._emit();
+    this._render();
+  }
+  _garageSection(root, add) {
+    add(`<div class="sec">Garage doors</div>`);
+    add(`<p class="hint">Add a garage door and a Garage page appears, in every room and on Whole house. Tap a door to open or close it, hold it for details. Pick the sensor too, so the card knows if it's open (it turns red after 10 minutes open).</p>`);
+    this._doors().forEach((d, i) => {
+      const box = document.createElement("div");
+      box.className = "room";
+      box.innerHTML = `<div class="rhead"><b></b><button class="ib" title="Remove garage door">✕</button></div>`;
+      box.querySelector("b").textContent = "🚗 " + (d.name || (d.entity && this._hass ? friendly(this._hass, d.entity) : "") || "Garage door " + (i + 1));
+      box.querySelector("button").addEventListener("click", () => this._door("del", i));
+      box.appendChild(this._form("gd:" + i, GD_SCHEMA, this._data("gd:" + i)));
+      root.appendChild(box);
+    });
+    add(`<button class="add" data-add="gd">+ Add a garage door</button>`);
+    root.querySelector('[data-add="gd"]').addEventListener("click", () => this._door("add"));
   }
 
   _camSection(root, add) {
@@ -1841,7 +2051,8 @@ class ArControlPanelCardEditor extends HTMLElement {
       lo.innerHTML = `<summary>↕ Order of lights in each room</summary><p class="hint">Drag ⠿ to move a light or light group up or down in its room.</p><div data-autolights></div>`;
       root.appendChild(lo);
       root.appendChild(this._nameBox("nm:auto"));
-      this._camSection(root, add);
+      this._garageSection(root, add);
+    this._camSection(root, add);
       this._refreshSorts();
       return;
     }
@@ -1890,6 +2101,7 @@ class ArControlPanelCardEditor extends HTMLElement {
     add(`<div class="sec">Whole house</div>`);
     add(`<p class="hint">These show on their own pages for the whole home.</p>`);
     root.appendChild(this._form("house", HOUSE_SCHEMA, this._data("house")));
+    this._garageSection(root, add);
     this._camSection(root, add);
     this._refreshSorts();
   }

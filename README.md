@@ -134,6 +134,32 @@ With no settings, each Home Assistant **area** becomes a room and a **Whole hous
 
 Hidden and config/diagnostic entities are left out, and anything without an area goes in an **Other** room. In the editor you can still choose which areas to show, leave entities out, and mark switches that are really lights.
 
+## Garage doors
+
+Add a garage door and a **Garage** page appears in the bottom bar, in every room and on Whole house. With no garage doors, there's no Garage page.
+
+Each door is a big tile showing an anthracite sectional door. When the door opens, it rolls up to show the lit garage inside:
+
+- **Status light** on the lintel: green = closed, amber = open, red and pulsing = open longer than 10 minutes, grey = unavailable.
+- The status line reads *CLOSED*, *OPEN · 5 MIN* or *UNAVAILABLE*.
+- **Tap** to open or close the door. **Hold** to open the sensor's details.
+
+In the editor, under **Garage doors**, tap **+ Add a garage door** and pick:
+
+1. **What opens and closes it:** the relay switch, a cover, a button or a script.
+2. **Door sensor (optional):** the binary sensor that says if the door is open. Without one, the card can't tell open from closed, unless the door is a `cover`.
+3. **Name (optional)**
+
+In automatic mode, `cover`s with the garage device class are added for you. In YAML:
+
+```yaml
+garage:
+  - name: Garage door
+    entity: switch.garage_door_open_close_garage_door
+    sensor: binary_sensor.garage_door_garage_door_sensor
+    alert_minutes: 10        # optional: turn red after this long open
+```
+
 ## Live cameras with WebRTC
 
 If you have the **WebRTC Camera** integration installed (HACS, by AlexxIT), the Cameras page plays your cameras live through it, with very little delay. Tap a camera tile to switch the big player to it.
