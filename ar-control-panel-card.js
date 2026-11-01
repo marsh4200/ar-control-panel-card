@@ -402,6 +402,16 @@ const normGarage = (v) => (Array.isArray(v) ? v : v ? [v] : [])
   .map((d) => (typeof d === "string" ? { entity: d } : d && typeof d === "object" ? d : null))
   .filter((d) => d && typeof d.entity === "string" && d.entity)
   .map((d) => ({ entity: d.entity, sensor: typeof d.sensor === "string" && d.sensor ? d.sensor : "", name: typeof d.name === "string" ? d.name : "", alert: Number(d.alert_minutes) > 0 ? Number(d.alert_minutes) : 10 }));
+// The Spotify account: a media_player from the SpotifyPlus or the Spotify
+// integration. Only by integration, or by name when it can browse media
+// (an amp called "Spotify…" is not the account).
+function spFind(h) {
+  const reg = h.entities || {};
+  const ids = Object.keys(h.states).filter((e) => e.indexOf("media_player.") === 0);
+  const browses = (e) => ((h.states[e].attributes.supported_features || 0) & 131072) === 131072;
+  return ids.find((e) => (reg[e] || {}).platform === "spotifyplus") || ids.find((e) => (reg[e] || {}).platform === "spotify")
+    || ids.find((e) => !(reg[e] || {}).platform && /^media_player\.spotify/.test(e) && browses(e)) || null;
+}
 // Put things in the order you dragged them into. Anything not in `order` keeps
 // its usual place, after the ones you ordered.
 const byOrder = (items, order, keyOf) => {
@@ -870,9 +880,7 @@ class ArControlPanel extends HTMLElement {
     if (c === false || (c && c.enabled === false)) return null;
     const want = typeof c === "string" ? c : c && c.entity;
     if (want) return this.has(want) ? want : null;
-    const reg = h.entities || {};
-    const ids = Object.keys(h.states).filter((e) => e.indexOf("media_player.") === 0);
-    return ids.find((e) => (reg[e] || {}).platform === "spotifyplus") || ids.find((e) => (reg[e] || {}).platform === "spotify") || ids.find((e) => /^media_player\.spotify/.test(e)) || null;
+    return spFind(h);
   }
   // SpotifyPlus: search, playlists, liked songs... through its own actions.
   spPlus(acct) {
@@ -959,10 +967,19 @@ class ArControlPanel extends HTMLElement {
       if (view === "recent") { const seen = {}; items = items.filter((x) => !seen[x.uri] && (seen[x.uri] = 1)); }
       sp.lists[view] = items;
     } catch (e) {
-      sp.err = (e && e.message) || "Couldn't reach Spotify.";
+      sp.err = this.spErr(e);
     }
     if (sp.loading === view) sp.loading = null;
     this._schedule(true);
+  }
+  spErr(e) {
+    const m = (e && e.message) || "Couldn't reach Spotify.";
+    const acct = this._sp && this._sp.acct;
+    if (/brows|not support|not found|unknown/i.test(m) && acct) {
+      const plat = ((this._hass.entities || {})[acct] || {}).platform;
+      return "The card is using " + friendly(this._hass, acct) + " (" + acct + (plat ? ", from " + plat : "") + ") as your Spotify account, but it can't browse Spotify (" + m + "). In the card settings under Spotify, pick the media player made by the Spotify or SpotifyPlus integration.";
+    }
+    return m;
   }
   async spSearch(q) {
     const sp = this._sp;
@@ -1700,7 +1717,8 @@ class ArControlPanel extends HTMLElement {
         body = chips + (items.length ? `<div class="sgrid">${items.map(tile).join("")}</div>` : `<div class="note">Nothing here yet.</div>`);
       }
     }
-    const tip = dev && !known && (as && (as.attributes.source_list || []).length) ? `<div class="note">Spotify hasn't seen “${esc(dev)}” yet. Tap <b>Playing to</b> to pick it from Spotify's list, or set its Spotify name in the card settings.</div>` : "";
+    const srcs = (as && as.attributes.source_list) || [];
+    const tip = dev && !known && srcs.length ? `<div class="note">Spotify hasn't seen “${esc(dev)}” yet. Spotify knows: ${esc(srcs.join(", "))}. Tap <b>Playing to</b> to pick one, or set this amp's Spotify name in the card settings.</div>` : "";
     this._spBody = tip + body;
     // a small player while Spotify plays (on any amp)
     const playing = as && (as.state === "playing" || as.state === "paused");
@@ -1718,7 +1736,8 @@ class ArControlPanel extends HTMLElement {
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Play Spotify on"><div class="box">
       <h2>Play Spotify on <button class="iconbtn" data-a="close" aria-label="Close">${svg("close", 18)}</button></h2>
       <div class="sdev">${list.length ? list.map((n) => `<button class="${n === cur ? "on" : ""}" data-a="spsel" data-v="${esc(n)}">${svg("speaker", 20)}<span><b>${esc(n)}</b><small>${n === active && s.state === "playing" ? "Playing now" : "Spotify Connect"}</small></span>${n === cur ? svg("check", 18) : ""}</button>`).join("") : `<div class="note">Spotify doesn't list any devices yet. Play something on an amp from the Spotify app once, then try again.</div>`}</div>
-      <p class="hint2">Music moves to the amp you pick and keeps playing from where it was.</p></div></div>`;
+      <p class="hint2">Music moves to the amp you pick and keeps playing from where it was.</p>
+      <p class="hint2" style="opacity:.75">Spotify account: ${esc(acct ? friendly(this._hass, acct) + " · " + acct : "none found")}</p></div></div>`;
   }
 
   _groupBox(e, roomSpeakers) {
@@ -2505,9 +2524,7 @@ class ArControlPanelCardEditor extends HTMLElement {
     if (!h || !h.states || sp === false || (sp && sp.enabled === false)) return null;
     const want = typeof sp === "string" ? sp : sp && sp.entity;
     if (want) return h.states[want] ? want : null;
-    const reg = h.entities || {};
-    const ids = Object.keys(h.states).filter((e) => e.indexOf("media_player.") === 0);
-    return ids.find((e) => (reg[e] || {}).platform === "spotifyplus") || ids.find((e) => (reg[e] || {}).platform === "spotify") || ids.find((e) => /^media_player\.spotify/.test(e)) || null;
+    return spFind(h);
   }
   _spSection(root, add) {
     add(`<div class="sec">Spotify</div>`);
@@ -2520,8 +2537,8 @@ class ArControlPanelCardEditor extends HTMLElement {
     hint.textContent = !acct
       ? "No Spotify account found yet. Add the SpotifyPlus integration (HACS, recommended, it can search) or Home Assistant's Spotify integration; it needs Spotify Premium."
       : plus
-        ? "Found " + friendly(h, acct) + " (SpotifyPlus): search, playlists, liked songs and recent plays on the Music page."
-        : "Found " + friendly(h, acct) + ". Playlists, liked songs and recent plays work; for search, add SpotifyPlus from HACS.";
+        ? "Using " + friendly(h, acct) + " (" + acct + ", SpotifyPlus): search, playlists, liked songs and recent plays on the Music page."
+        : "Using " + friendly(h, acct) + " (" + acct + (((h.entities || {})[acct] || {}).platform ? ", from " + h.entities[acct].platform : "") + "). Playlists, liked songs and recent plays work; for search, add SpotifyPlus from HACS. If that's not your Spotify account, pick the right one below.";
     root.appendChild(hint);
     root.appendChild(this._form("sp", SP_SCHEMA, this._data("sp")));
     const box = document.createElement("details");
