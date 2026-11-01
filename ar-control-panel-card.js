@@ -325,6 +325,8 @@ input[type=range]:disabled{opacity:.35}
 .swake>div{flex:1;min-width:180px;display:flex;flex-direction:column;gap:4px}
 .swake b{font-size:15px}.swake small{font-size:12px;font-weight:600;line-height:1.45;color:rgba(var(--ink-rgb),.66)}
 .swake .act{flex:none;margin-left:auto}
+.sdh{margin:8px 4px 0;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(var(--ink-rgb),.55)}
+.sdev .sdmore{justify-content:center;font-size:14px;font-weight:700;color:var(--acc);border-style:dashed}
 .hint2{margin:14px 2px 2px;font-size:13px;color:rgba(var(--ink-rgb),.6);font-weight:600}
 @media (prefers-reduced-motion:reduce){.eq i{animation:none}}
 /* ---- garage doors: the door rolls up to show the garage inside ---- */
@@ -901,16 +903,28 @@ class ArControlPanel extends HTMLElement {
   }
   // The Spotify Connect name of an amp: set in the editor, picked on the card,
   // or matched by name from Spotify's device list.
+  spNames() {
+    const s = this.st(this.spAcct());
+    return uniq(((s && s.attributes.source_list) || []).filter((n) => typeof n === "string" && n.trim()));
+  }
+  // Your amps: the speakers you picked in the settings, else every speaker
+  // in your rooms.
+  spAmps() {
+    const acct = this.spAcct();
+    const only = arr(this._config && this._config.speakers);
+    const all = only.length ? only : uniq([].concat.apply([], this.rooms().filter((r) => !r.whole).map((r) => r.music || [])));
+    return all.filter((e) => this.has(e) && e !== acct);
+  }
   spDevice(amp) {
     const acct = this.spAcct();
     const s = this.st(acct);
-    const list = (s && s.attributes.source_list) || [];
+    const list = this.spNames();
     const key = amp || "_none";
     const picked = this._s.spDev && this._s.spDev[key];
     if (picked) return picked;
     const map = (this._config && this._config.spotify && this._config.spotify.devices) || {};
     if (amp && typeof map[amp] === "string" && map[amp].trim()) return map[amp].trim();
-    if (!amp) return (s && s.attributes.source) || list[0] || "";
+    if (!amp) return (s && typeof s.attributes.source === "string" && s.attributes.source.trim()) || "";
     const norm = (x) => String(x).toLowerCase().replace(/[^a-z0-9]/g, "");
     const names = uniq([this.name(amp), friendly(this._hass, amp), amp.split(".")[1]]).map(norm).filter(Boolean);
     const hit = list.find((n) => names.indexOf(norm(n)) >= 0) || list.find((n) => names.some((m) => norm(n) && (m.indexOf(norm(n)) >= 0 || norm(n).indexOf(m) >= 0)));
@@ -1226,7 +1240,7 @@ class ArControlPanel extends HTMLElement {
         break;
       }
       case "panel": this._sheet = null; this._lib = null; this._set({ panel: Number(v), room: null, mus: null, clim: 0 }); break;
-      case "close": this._sheet = null; this._pin = null; this._schedule(true); break;
+      case "close": this._spAll = false; this._sheet = null; this._pin = null; this._schedule(true); break;
       case "scene": {
         const d = e.split(".")[0];
         this.call(d === "script" ? "script" : d === "scene" ? "scene" : "homeassistant", "turn_on", { entity_id: e });
@@ -1294,7 +1308,8 @@ class ArControlPanel extends HTMLElement {
       case "spp": { const r = (this._spRefs || [])[Number(v)]; if (r) this.spPlay(r.item || r, Object.assign({ amp: this._spAmp }, r.opt || {})); break; }
       case "spback": { const d = this._sp.detail; this._sp.detail = null; this._sp.view = (d && d.back) || "playlists"; this._schedule(true); break; }
       case "spdev": this._sheet = "spdev"; this._schedule(true); break;
-      case "spsel": this.spMove(this._spAmp, v); break;
+      case "spsel": this._spAll = false; this.spMove(this._spAmp, v); break;
+      case "spall": this._spAll = true; this._schedule(true); break;
       case "spwake": this.spWake(this._spAmp); break;
       case "spm": this.call("media_player", v, { entity_id: e }); break;
       case "lib": {
@@ -1782,13 +1797,30 @@ class ArControlPanel extends HTMLElement {
   _spDevSheet() {
     const acct = this.spAcct();
     const s = this.st(acct);
-    const list = ((s && s.attributes.source_list) || []).slice();
+    const names = this.spNames();
     const cur = this.spDevice(this._spAmp);
-    if (cur && list.indexOf(cur) < 0) list.unshift(cur);
     const active = s && s.attributes.source;
+    const playing = s && s.state === "playing";
+    // your amps (by their own name), matched to Spotify's devices
+    const mine = [];
+    this.spAmps().forEach((amp) => {
+      const dev = this.spDevice(amp);
+      if (dev && names.indexOf(dev) >= 0 && !mine.some((m) => m.dev === dev)) mine.push({ dev, label: this.name(amp), sub: dev !== this.name(amp) ? "Spotify: " + this.spLabel(dev) : "" });
+    });
+    mine.sort((x, y) => (y.dev === cur) - (x.dev === cur)); // this room's amp first
+    const others = names.filter((n) => !mine.some((m) => m.dev === n));
+    const only = arr(this._config && this._config.speakers).length > 0;
+    const showOthers = !mine.length || !only || this._spAll || others.indexOf(cur) >= 0;
+    const btn = (n, label, sub) => `<button class="${n === cur ? "on" : ""}" data-a="spsel" data-v="${esc(n)}">${svg("speaker", 20)}<span><b>${esc(label)}</b><small>${esc(n === active && playing ? "Playing now" + (sub ? " · " + sub : "") : sub || "Spotify Connect")}</small></span>${n === cur ? svg("check", 18) : ""}</button>`;
+    const body = !names.length
+      ? `<div class="note">Spotify doesn't list any devices yet. Play something on an amp from the Spotify app once, then try again.</div>`
+      : (mine.length ? `<div class="sdh">Your speakers</div>${mine.map((m) => btn(m.dev, m.label, m.sub)).join("")}` : "")
+        + (others.length ? (showOthers
+          ? `${mine.length ? `<div class="sdh">Other Spotify devices</div>` : ""}${others.map((n) => btn(n, this.spLabel(n), "")).join("")}`
+          : `<button class="sdmore" data-a="spall">Show other Spotify devices (${others.length})</button>`) : "");
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Play Spotify on"><div class="box">
       <h2>Play Spotify on <button class="iconbtn" data-a="close" aria-label="Close">${svg("close", 18)}</button></h2>
-      <div class="sdev">${list.length ? list.map((n) => `<button class="${n === cur ? "on" : ""}" data-a="spsel" data-v="${esc(n)}">${svg("speaker", 20)}<span><b>${esc(this.spLabel(n))}</b><small>${n === active && s.state === "playing" ? "Playing now" : "Spotify Connect"}</small></span>${n === cur ? svg("check", 18) : ""}</button>`).join("") : `<div class="note">Spotify doesn't list any devices yet. Play something on an amp from the Spotify app once, then try again.</div>`}</div>
+      <div class="sdev">${body}</div>
       <p class="hint2">Music moves to the amp you pick and keeps playing from where it was.</p>
       <p class="hint2" style="opacity:.75">Spotify account: ${esc(acct ? friendly(this._hass, acct) + " · " + acct : "none found")}</p></div></div>`;
   }
