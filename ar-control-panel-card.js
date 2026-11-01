@@ -320,6 +320,11 @@ input[type=range]:disabled{opacity:.35}
 .sdev b{font-size:15px}.sdev small{font-size:12px;font-weight:600;color:rgba(var(--ink-rgb),.55)}
 .sdev button.on{border-color:rgba(var(--acc-rgb),.55);background:rgba(var(--acc-rgb),.12)}
 .sdev button.on svg{color:var(--acc)}
+.swake{margin-top:14px;padding:14px;border-radius:18px;display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.swake>svg{color:var(--acc);flex:none}
+.swake>div{flex:1;min-width:180px;display:flex;flex-direction:column;gap:4px}
+.swake b{font-size:15px}.swake small{font-size:12px;font-weight:600;line-height:1.45;color:rgba(var(--ink-rgb),.66)}
+.swake .act{flex:none;margin-left:auto}
 .hint2{margin:14px 2px 2px;font-size:13px;color:rgba(var(--ink-rgb),.6);font-weight:600}
 @media (prefers-reduced-motion:reduce){.eq i{animation:none}}
 /* ---- garage doors: the door rolls up to show the garage inside ---- */
@@ -946,6 +951,7 @@ class ArControlPanel extends HTMLElement {
     sp.err = null;
     sp.detail = null;
     if (sp.lists[view]) { this._schedule(true); return; }
+    if (this.spAsleep(sp.acct)) { this._schedule(true); return; }
     sp.loading = view;
     this._schedule(true);
     try {
@@ -971,6 +977,41 @@ class ArControlPanel extends HTMLElement {
     }
     if (sp.loading === view) sp.loading = null;
     this._schedule(true);
+  }
+  // Spotify sometimes lists a device by a long code instead of a name.
+  spLabel(n) {
+    const m = (this._config && this._config.spotify && this._config.spotify.devices) || {};
+    const amp = Object.keys(m).find((k) => m[k] === n);
+    if (amp) return this.name(amp);
+    return /^[0-9a-f]{24,}$/i.test(String(n)) ? "Spotify device " + n.slice(0, 4) + "…" + n.slice(-4) : n;
+  }
+  spFeat(acct) { const s = this.st(acct); return (s && s.attributes.supported_features) || 0; }
+  // Home Assistant's own Spotify integration only browses and plays while
+  // something is active on the account. Waking it = making the amp the
+  // active Spotify Connect device (paused), which turns everything back on.
+  spAsleep(acct) { return !this.spPlus(acct) && !(this.spFeat(acct) & 131072); }
+  async spWake(amp) {
+    const acct = this._sp.acct;
+    const s = this.st(acct);
+    const dev = this.spDevice(amp);
+    const list = (s && s.attributes.source_list) || [];
+    if (!(this.spFeat(acct) & 2048)) { this._say("Your Spotify account needs Premium for this"); return false; }
+    if (!dev || list.indexOf(dev) < 0) { this._sheet = "spdev"; this._schedule(true); this._say("Pick which Spotify device this amp is"); return false; }
+    this._sp.waking = true;
+    this._schedule(true);
+    try {
+      await this._hass.callService("media_player", "select_source", { entity_id: acct, source: dev });
+      for (let i = 0; i < 16 && this.spAsleep(acct); i++) await new Promise((r) => setTimeout(r, 500));
+      if (this.spAsleep(acct)) await this._hass.callService("homeassistant", "update_entity", { entity_id: acct }).catch(() => {});
+      for (let i = 0; i < 8 && this.spAsleep(acct); i++) await new Promise((r) => setTimeout(r, 500));
+    } catch (e) {
+      this._say((e && e.message) || "Couldn't wake Spotify on " + this.spLabel(dev));
+    }
+    this._sp.waking = false;
+    const ok = !this.spAsleep(acct);
+    if (ok) { this._sp.lists = {}; this._sp.err = null; this.spLoad(this._sp.view === "detail" || this._sp.view === "search" ? "playlists" : this._sp.view || "playlists"); }
+    else { this._say("Spotify didn't wake up on " + this.spLabel(dev)); this._schedule(true); }
+    return ok;
   }
   spErr(e) {
     const m = (e && e.message) || "Couldn't reach Spotify.";
@@ -1068,6 +1109,7 @@ class ArControlPanel extends HTMLElement {
           await h.callService("spotifyplus", "player_media_play_tracks", Object.assign(base, { uris: (list.length ? list : [item]).map((t) => t.uri).join(",") }));
         } else await h.callService("spotifyplus", "player_media_play_context", Object.assign(base, { context_uri: item.uri, shuffle: !!o.shuffle }));
       } else {
+        if (this.spAsleep(acct) && !(await this.spWake(o.amp))) return;
         const s = this.st(acct);
         const list = (s && s.attributes.source_list) || [];
         if (dev && list.indexOf(dev) >= 0 && s.attributes.source !== dev) await h.callService("media_player", "select_source", { entity_id: acct, source: dev });
@@ -1089,11 +1131,12 @@ class ArControlPanel extends HTMLElement {
     this._sheet = null;
     this._set({ spDev });
     const s = this.st(acct);
-    if (!s || (s.state !== "playing" && s.state !== "paused")) { this._say("Spotify will play on " + dev); return; }
+    if (this.spAsleep(acct)) { this.spWake(amp); return; } // picking the amp also wakes Spotify there
+    if (!s || (s.state !== "playing" && s.state !== "paused")) { this._say("Spotify will play on " + this.spLabel(dev)); return; }
     try {
       if (this.spPlus(acct)) await this._hass.callService("spotifyplus", "player_transfer_playback", { entity_id: acct, device_id: dev, play: s.state === "playing" });
       else await this._hass.callService("media_player", "select_source", { entity_id: acct, source: dev });
-      this._say("Moved to " + dev);
+      this._say("Moved to " + this.spLabel(dev));
     } catch (e) {
       this._say((e && e.message) || "Couldn't move to " + dev);
     }
@@ -1251,6 +1294,7 @@ class ArControlPanel extends HTMLElement {
       case "spback": { const d = this._sp.detail; this._sp.detail = null; this._sp.view = (d && d.back) || "playlists"; this._schedule(true); break; }
       case "spdev": this._sheet = "spdev"; this._schedule(true); break;
       case "spsel": this.spMove(this._spAmp, v); break;
+      case "spwake": this.spWake(this._spAmp); break;
       case "spm": this.call("media_player", v, { entity_id: e }); break;
       case "lib": {
         const it = this._lib && this._lib.items[Number(v)];
@@ -1658,10 +1702,14 @@ class ArControlPanel extends HTMLElement {
     const refs = (this._spRefs = []);
     const ref = (x) => refs.push(x) - 1;
     if (!sp.view) { sp.view = "playlists"; setTimeout(() => this.spLoad("playlists"), 0); }
+    // woke up by itself (something started playing): load what's on screen
+    const asleep = this.spAsleep(acct);
+    if (sp.wasAsleep && !asleep && sp.view !== "detail" && sp.view !== "search" && !sp.lists[sp.view]) { sp.err = null; setTimeout(() => this.spLoad(sp.view), 0); }
+    sp.wasAsleep = asleep;
     const dev = this.spDevice(amp);
     const as = this.st(acct);
     const known = ((as && as.attributes.source_list) || []).indexOf(dev) >= 0;
-    const target = `<button class="sto glass" data-a="spdev">${svg("speaker", 18)}<span><small>Playing to</small><b>${esc(dev || "Pick an amp")}</b></span><em>Spotify Connect</em>${svg("chev", 14)}</button>`;
+    const target = `<button class="sto glass" data-a="spdev">${svg("speaker", 18)}<span><small>Playing to</small><b>${esc(dev ? this.spLabel(dev) : "Pick an amp")}</b></span><em>Spotify Connect</em>${svg("chev", 14)}</button>`;
     const search = `<label class="ssearch glass">${svg("search", 18)}<input type="search" enterkeyhint="search" autocomplete="off" data-a="spq" value="${esc(sp.q)}" placeholder="${this.spCanSearch(acct) ? "Search songs, artists, playlists" : "Search needs SpotifyPlus"}" aria-label="Search Spotify">${sp.q ? `<button data-a="spclear" aria-label="Clear search">${svg("close", 16)}</button>` : ""}</label>`;
 
     const art = (it, big) => it.type === "liked"
@@ -1718,8 +1766,12 @@ class ArControlPanel extends HTMLElement {
       }
     }
     const srcs = (as && as.attributes.source_list) || [];
-    const tip = dev && !known && srcs.length ? `<div class="note">Spotify hasn't seen “${esc(dev)}” yet. Spotify knows: ${esc(srcs.join(", "))}. Tap <b>Playing to</b> to pick one, or set this amp's Spotify name in the card settings.</div>` : "";
-    this._spBody = tip + body;
+    const tip = dev && !known && srcs.length ? `<div class="note">Spotify doesn't list “${esc(dev)}” by that name. Tap <b>Playing to</b> and pick which Spotify device is this amp (try one, see which amp plays), or set it in the card settings under Spotify.</div>` : "";
+    const feat = this.spFeat(acct);
+    const wake = asleep && !this.spPlus(acct)
+      ? `<div class="glass swake">${svg("speaker", 22)}<div><b>${sp.waking ? "Waking Spotify…" : "Spotify is asleep"}</b><small>${!(feat & 2048) ? "Home Assistant's Spotify integration needs a Spotify Premium account." : "Nothing is playing on your Spotify account, so Home Assistant's Spotify integration won't open your library. Wake it on this amp (it stays paused), or add SpotifyPlus from HACS so this never happens."}</small></div>${feat & 2048 ? `<button class="act on" data-a="spwake"${sp.waking ? " disabled" : ""}>${sp.waking ? "…" : "Wake on " + esc(known ? this.spLabel(dev) : "amp")}</button>` : ""}</div>`
+      : "";
+    this._spBody = tip + (wake ? wake + body.replace(/<div class="note">[^<]*(Player does not support|can't browse)[\s\S]*?<\/div>/, "").replace(/<div class="empty"[^>]*>Loading your Spotify…<\/div>/, "") : body);
     // a small player while Spotify plays (on any amp)
     const playing = as && (as.state === "playing" || as.state === "paused");
     const a = (as && as.attributes) || {};
@@ -1735,7 +1787,7 @@ class ArControlPanel extends HTMLElement {
     const active = s && s.attributes.source;
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Play Spotify on"><div class="box">
       <h2>Play Spotify on <button class="iconbtn" data-a="close" aria-label="Close">${svg("close", 18)}</button></h2>
-      <div class="sdev">${list.length ? list.map((n) => `<button class="${n === cur ? "on" : ""}" data-a="spsel" data-v="${esc(n)}">${svg("speaker", 20)}<span><b>${esc(n)}</b><small>${n === active && s.state === "playing" ? "Playing now" : "Spotify Connect"}</small></span>${n === cur ? svg("check", 18) : ""}</button>`).join("") : `<div class="note">Spotify doesn't list any devices yet. Play something on an amp from the Spotify app once, then try again.</div>`}</div>
+      <div class="sdev">${list.length ? list.map((n) => `<button class="${n === cur ? "on" : ""}" data-a="spsel" data-v="${esc(n)}">${svg("speaker", 20)}<span><b>${esc(this.spLabel(n))}</b><small>${n === active && s.state === "playing" ? "Playing now" : "Spotify Connect"}</small></span>${n === cur ? svg("check", 18) : ""}</button>`).join("") : `<div class="note">Spotify doesn't list any devices yet. Play something on an amp from the Spotify app once, then try again.</div>`}</div>
       <p class="hint2">Music moves to the amp you pick and keeps playing from where it was.</p>
       <p class="hint2" style="opacity:.75">Spotify account: ${esc(acct ? friendly(this._hass, acct) + " · " + acct : "none found")}</p></div></div>`;
   }
@@ -2545,8 +2597,10 @@ class ArControlPanelCardEditor extends HTMLElement {
     box.className = "names";
     const list = (acct && h.states[acct].attributes.source_list) || [];
     box.innerHTML = `<summary>🔊 Match amps to Spotify Connect (optional)</summary><p class="hint"></p>`;
-    box.querySelector("p").textContent = "The card matches each amp to its Spotify Connect name by itself. If an amp has a different name in Spotify, type that name here." + (list.length ? " Spotify knows: " + list.join(", ") + "." : "");
-    const f = this._form("spd", this._amps().map((e) => ({ name: e, selector: { text: {} } })), this._data("spd"));
+    box.querySelector("p").textContent = "The card matches each amp to its Spotify Connect device by name. When Spotify lists devices by a code instead of a name, pick the right one for each amp here (not sure which? choose one under Playing to on the card and listen which amp plays).";
+    const short = (n) => (/^[0-9a-f]{24,}$/i.test(n) ? "Spotify device " + n.slice(0, 4) + "…" + n.slice(-4) : n);
+    const sel = list.length ? { select: { mode: "dropdown", custom_value: true, options: list.map((n) => ({ value: n, label: short(n) })) } } : { text: {} };
+    const f = this._form("spd", this._amps().map((e) => ({ name: e, selector: sel })), this._data("spd"));
     f.computeLabel = (sc) => friendly(h, sc.name);
     box.appendChild(f);
     root.appendChild(box);
