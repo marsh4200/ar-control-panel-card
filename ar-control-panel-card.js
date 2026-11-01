@@ -129,7 +129,12 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .rsh .rc{font-size:13px;font-weight:600;color:rgba(var(--ink-rgb),.55);white-space:nowrap}
 .rsh .rc.lit{color:var(--acc)}
 .rsh .chv{align-self:center;margin-left:auto}
-.rsec .lgs,.rsec .grid{margin-top:12px}
+.rsec .lgs,.rsec .grid,.rsec .list{margin-top:12px}
+.rsh.col .tap{flex-direction:column;align-items:flex-start;gap:2px}
+.rsh.col .rl{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%}
+.rsh.col .rl .chv{margin-left:0}
+.rsh .seg{flex:none;flex-wrap:nowrap}
+.rsh .seg button{width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center}
 .lgrp{position:relative;overflow:hidden;padding:14px;border-radius:22px;display:flex;flex-direction:column;gap:10px}
 .lgrp.on{background:rgba(40,33,24,.62);border-color:rgba(var(--acc-rgb),.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 0 24px -8px rgba(var(--acc-rgb),.55)}
 .lgh{display:flex;align-items:center;gap:12px}
@@ -1149,7 +1154,16 @@ class ArControlPanel extends HTMLElement {
       case "menu": this.dispatchEvent(new CustomEvent("hass-toggle-menu", { bubbles: true, composed: true })); break;
       case "go": this._set({ tab: v }); this.shadowRoot.querySelector(".root").scrollTop = 0; break;
       case "rooms": this._sheet = "rooms"; this._schedule(true); break;
-      case "room": this._sheet = null; this._lib = null; this._set({ room: Number(v), mus: null, clim: 0 }); break;
+      case "room": {
+        this._sheet = null;
+        this._lib = null;
+        const patch = { room: Number(v), mus: null, clim: 0 };
+        // Setting "Changing room goes to its Home page": a new room starts on Home.
+        if (this._config && this._config.room_home && Number(v) !== this._s.room) patch.tab = "home";
+        this._set(patch);
+        if (patch.tab) { const rt = this.shadowRoot.querySelector(".root"); if (rt) rt.scrollTop = 0; }
+        break;
+      }
       case "panel": this._sheet = null; this._lib = null; this._set({ panel: Number(v), room: null, mus: null, clim: 0 }); break;
       case "close": this._sheet = null; this._pin = null; this._schedule(true); break;
       case "scene": {
@@ -1251,6 +1265,11 @@ class ArControlPanel extends HTMLElement {
         break;
       }
       case "cover": this.call("cover", v, { entity_id: e }); break;
+      case "covers": {
+        const ids = (this._shGroups || {})[b.getAttribute("data-g")] || [];
+        if (ids.length) this.call("cover", v, { entity_id: ids });
+        break;
+      }
       case "unjoin": {
         const g = this.groupInfo(e);
         // the leader ungroups everyone; a member just leaves
@@ -1752,8 +1771,7 @@ class ArControlPanel extends HTMLElement {
   }
 
   _shades() {
-    return `<div class="list">${this.ents("shades")
-      .map((e) => {
+    const one = (e) => {
         const s = this.st(e);
         const pos = s.attributes.current_position;
         const canPos = pos != null && (s.attributes.supported_features & 4) === 4;
@@ -1763,8 +1781,34 @@ class ArControlPanel extends HTMLElement {
           <div class="seg"><button data-a="cover" data-e="${esc(e)}" data-v="open_cover" aria-label="Open ${esc(this.name(e))}">${svg("up", 18)}</button><button data-a="cover" data-e="${esc(e)}" data-v="stop_cover" aria-label="Stop">${svg("stop", 16)}</button><button data-a="cover" data-e="${esc(e)}" data-v="close_cover" aria-label="Close ${esc(this.name(e))}">${svg("down", 18)}</button></div>
           ${canPos ? `<input type="range" min="0" max="100" value="${pos}" data-a="pos" data-e="${esc(e)}" aria-label="${esc(this.name(e))} position">` : ""}
         </div>`;
-      })
-      .join("")}</div>`;
+    };
+    const cur = this.room();
+    if (!(cur && cur.whole)) return `<div class="list">${this.ents("shades").map(one).join("")}</div>`;
+    // Whole house: each room's shades under its name, in your room order.
+    // A room's buttons open / stop / close all of its shades; tap the name to fold it.
+    const open = this._s.open || {};
+    this._shGroups = {};
+    const secs = this.rooms()
+      .filter((rm) => !rm.whole)
+      .map((rm, i) => ({ id: "sh:" + i, name: rm.name, ids: uniq((rm.shades || []).filter((e) => this.has(e))) }))
+      .filter((sec) => sec.ids.length);
+    const all = uniq([].concat.apply([], secs.map((sec) => sec.ids)));
+    this._shGroups.all = all;
+    const n = all.filter((e) => this.isOn(e)).length;
+    const bar = `<div class="bar"><div class="lbl">${n} of ${all.length} open</div><button class="act on" data-a="covers" data-g="all" data-v="open_cover">Open all</button><button class="act" data-a="covers" data-g="all" data-v="close_cover">Close all</button></div>`;
+    return bar + secs.map((sec) => {
+      this._shGroups[sec.id] = sec.ids;
+      const on = sec.ids.filter((e) => this.isOn(e)).length;
+      const shut = !!open[sec.id];
+      const rc = on ? on + " of " + sec.ids.length + " open" : sec.ids.length === 1 ? "closed" : sec.ids.length + " shades · all closed";
+      return `<section class="rsec" aria-label="${esc(sec.name)}">
+        <div class="rsh col">
+          <button class="tap" data-a="gopen" data-v="${esc(sec.id)}" aria-expanded="${!shut}"><span class="rl"><span class="rn">${esc(sec.name)}</span><span class="chv ${shut ? "" : "open"}">${svg("chev", 14)}</span></span><span class="rc ${on ? "lit" : ""}">${esc(rc)}</span></button>
+          <div class="seg"><button data-a="covers" data-g="${esc(sec.id)}" data-v="open_cover" aria-label="Open all ${esc(sec.name)} shades">${svg("up", 18)}</button><button data-a="covers" data-g="${esc(sec.id)}" data-v="stop_cover" aria-label="Stop ${esc(sec.name)} shades">${svg("stop", 16)}</button><button data-a="covers" data-g="${esc(sec.id)}" data-v="close_cover" aria-label="Close all ${esc(sec.name)} shades">${svg("down", 18)}</button></div>
+        </div>
+        ${shut ? "" : `<div class="list">${sec.ids.map(one).join("")}</div>`}
+      </section>`;
+    }).join("");
   }
 
   _cameras() {
@@ -1890,6 +1934,7 @@ const ENT = (domain) => ({ entity: { multiple: true, filter: { domain } } });
 const LABELS = {
   title: "Name of your home",
   mode: "Where the rooms come from",
+  room_home: "Changing room goes to its Home page (off: stay on the page you're on, e.g. Lights)",
   areas: "Only these areas (in this order, leave empty for all)",
   exclude: "Leave these out",
   light_switches: "Switches that are really lights",
@@ -1935,6 +1980,7 @@ const MODE_SCHEMA = [
     { value: "manual", label: "I pick my own rooms and entities" },
     { value: "areas", label: "Automatic, from my Home Assistant areas" },
   ] } } },
+  { name: "room_home", selector: { boolean: {} } },
 ];
 const AUTO_SCHEMA = [
   { name: "areas", selector: { area: { multiple: true } } },
@@ -2244,7 +2290,7 @@ class ArControlPanelCardEditor extends HTMLElement {
   }
   _data(key) {
     const c = this._cfg;
-    if (key === "mode") return { title: c.title || "", mode: c.mode };
+    if (key === "mode") return { title: c.title || "", mode: c.mode, room_home: !!c.room_home };
     if (key === "auto") return { areas: arr(c.areas), exclude: arr(c.exclude), light_switches: arr(c.light_switches), show_unassigned: c.show_unassigned !== false, whole_house: c.whole_house !== false };
     if (key === "house") return { cameras: arr(c.cameras), security: arr(c.security), utilities: arr(c.utilities), whole_house: c.whole_house !== false };
     if (key === "rtc") return { webrtc: c.webrtc !== false };
@@ -2325,6 +2371,7 @@ class ArControlPanelCardEditor extends HTMLElement {
     }
     if (key === "mode") {
       if (v.title) c.title = v.title; else delete c.title;
+      if (v.room_home) c.room_home = true; else delete c.room_home;
       if (v.mode !== c.mode) {
         c.mode = v.mode;
         if (v.mode === "manual" && !this._rooms().length) this._prefill();

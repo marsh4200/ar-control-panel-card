@@ -81,6 +81,19 @@ rooms:
 
 Home Assistant's own light groups (Settings > Helpers > Group > Light group) open into their lights the same way, in both modes. On **Whole house**, groups are named with their room ("Lounge · Downlights").
 
+### Whole house: shades sorted by room
+
+Choose **Whole house** and open **Shades**: every curtain, blind and awning is listed under its room's name, in your room order. Each room heading shows how many are open and has ▲ ■ ▼ buttons to open, stop or close all of that room's shades. Tap a room's name to fold it away. At the top, **Open all** and **Close all** work on the whole house.
+
+### Changing room: stay on the page, or go to Home
+
+In the editor, **Changing room goes to its Home page** decides what happens when you pick another room:
+
+- **Off** (the default): you stay on the page you're on. On Lights in the Gym, pick Kitchen, and you see the Kitchen's lights.
+- **On:** a new room always opens on its Home page. On Lights in Bedroom 1, pick Bedroom 2, and you land on Bedroom 2's Home page.
+
+Refreshing the page always keeps you where you were. In YAML: `room_home: true`.
+
 ### Drag rooms and lights into order
 
 In the editor, grab the **⠿** handle and drag. This works with a mouse and with your finger on a phone, and a focused handle also moves with the ↑ ↓ arrow keys.
