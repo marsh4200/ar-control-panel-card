@@ -34,13 +34,14 @@ views:
 
 ## Pick your own rooms and entities
 
-Open the dashboard > pencil (Edit) > click the card > **Edit**. Everything is picked from dropdowns of your Home Assistant entities:
+Open the dashboard > pencil (Edit) > click the card > **Edit**. The settings are in tabs: **General · Rooms · Whole house · Music · Garage · Cameras**. Everything is picked from dropdowns of your Home Assistant entities.
 
-1. **Where the rooms come from** > choose **I pick my own rooms and entities**. It starts you off with what it found in your areas, so you only change what's wrong.
-2. For each room, set the **name**, then pick its **Lights**, **Climate**, **Music**, **Shades** and **Scenes** from the dropdowns.
-3. **+ Add a room** for more rooms; ↑ ↓ change the order, ✕ removes one.
-4. Under **Whole house**, pick your **Cameras**, **Security** (alarm, locks, door and motion sensors) and **Utilities** (geyser, pumps, plugs).
-5. Save.
+1. **General** > **Where the rooms come from** > choose **I pick my own rooms and entities**. The card starts you off with what it found in your areas, so you only change what's wrong.
+2. **Rooms:** each room has its own tab. Tap a room to see only that room, then set its **name**, **Lights**, **Climate**, **Music**, **Shades** and **Scenes**. Under those are **Light groups**, **Order of lights** and **Rename lights**.
+3. **+ Room** adds a room. Drag a room's tab sideways, or use ← →, to change the order. **Delete room** removes it.
+4. **Whole house:** pick your **Cameras**, **Security** (alarm, locks, door and motion sensors) and **Utilities** (geyser, pumps, plugs).
+5. **Music:** **Only show these speakers**. Leave it empty to show every speaker. Pick some, and only those show on the Music pages and as Spotify's amps (YAML: `speakers: [media_player.bar, media_player.gym_sound]`). Spotify's settings are here too.
+6. Save.
 
 Prefer YAML? The same thing looks like this:
 

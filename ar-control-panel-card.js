@@ -722,7 +722,8 @@ class ArControlPanel extends HTMLElement {
     const r = this.room();
     if (!p || !r) return [];
     const acct = this.spAcct();
-    const own = (r.music || []).filter((e) => this.has(e) && e !== acct);
+    const only = arr(this._config && this._config.speakers); // empty = every speaker
+    const own = (r.music || []).filter((e) => this.has(e) && e !== acct && (!only.length || only.indexOf(e) >= 0));
     if (own.length) return own;
     const m = p.music || {};
     if (!m.ma && !m.spotify) return [];
@@ -2023,12 +2024,15 @@ const LABELS = {
   url: "RTSP link or go2rtc stream name",
   group_lights: "Lights in this group",
   webrtc: "Play cameras live with WebRTC (needs the WebRTC Camera integration)",
+  speakers: "Only show these speakers (leave empty for all)",
   sp_entity: "Spotify account (leave empty and it's found by itself)",
   sp_on: "Show Spotify on the Music page",
   gd_name: "Name on the tile (optional)",
   gd_entity: "What opens and closes it (relay switch, cover, button or script)",
   gd_sensor: "Door sensor that says open / closed (optional)",
 };
+const SPK_SCHEMA = [{ name: "speakers", selector: ENT(["media_player"]) }];
+const ED_TABS = [["general", "General"], ["rooms", "Rooms"], ["house", "Whole house"], ["music", "Music"], ["garage", "Garage"], ["cameras", "Cameras"]];
 const SP_SCHEMA = [
   { name: "sp_on", selector: { boolean: {} } },
   { name: "sp_entity", selector: { entity: { filter: { domain: ["media_player"] } } } },
@@ -2082,6 +2086,23 @@ const LGROUP_SCHEMA = [
 
 const EDITOR_CSS = `
 :host{display:block}
+.etabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--divider-color,#444);margin:0 0 14px;position:sticky;top:0;z-index:3;background:var(--card-background-color,var(--ha-card-background,#1c1c1c))}
+.etabs::-webkit-scrollbar{display:none}
+.etabs button{flex:none;background:none;border:0;border-bottom:2px solid transparent;padding:12px 12px;font:inherit;font-size:14px;font-weight:500;color:var(--secondary-text-color);cursor:pointer}
+.etabs button.on{color:var(--primary-color);border-bottom-color:var(--primary-color)}
+.etabs button:focus-visible{outline:2px solid var(--primary-color);outline-offset:-2px}
+.chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.chips li{display:flex;align-items:center;height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--divider-color,#444);background:rgba(127,127,127,.08);color:var(--primary-text-color);font-size:14px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:pan-y}
+.chips li.on{border-color:var(--primary-color);background:rgba(3,169,244,.16);font-weight:600}
+.chips li.drag{position:relative;z-index:2;box-shadow:0 6px 18px rgba(0,0,0,.35);border-color:var(--primary-color)}
+.chips li:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}
+.chipbar{display:flex;align-items:center;gap:10px;margin:10px 0 4px;flex-wrap:wrap}
+.chipbar span{font-size:12px;color:var(--secondary-text-color)}
+.add.mini{width:auto;height:36px;margin:0;padding:0 14px;border-radius:18px;font-size:14px}
+.rbody{margin-top:12px;border-top:1px solid var(--divider-color,#444);padding-top:12px}
+.rhead2{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.rhead2 b{flex:1;min-width:0;font-size:17px;color:var(--primary-text-color);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.del{height:34px;padding:0 12px;border-radius:17px;border:1px solid rgba(239,83,80,.5);background:none;color:var(--error-color,#ef5350);font:inherit;font-size:13px;cursor:pointer}
 .sec{margin:18px 0 6px;font-size:15px;font-weight:600;color:var(--primary-text-color)}
 .hint{margin:0 0 10px;font-size:13px;color:var(--secondary-text-color)}
 .room{border:1px solid var(--divider-color,#444);border-radius:12px;padding:10px 12px 12px;margin:10px 0}
@@ -2113,7 +2134,36 @@ class ArControlPanelCardEditor extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._cfg = {};
     this._shape = null;
+    this._tab = "general";
+    this._ri = 0; // the room shown on the Rooms tab
+    this._folds = {}; // fold-outs left open
     this._wireSort(this.shadowRoot);
+    // tabs and room tabs
+    this.shadowRoot.addEventListener("click", (e) => {
+      const t = e.target.closest && e.target.closest("[data-tab]");
+      if (t) { this._tab = t.getAttribute("data-tab"); this._shape = null; this._render(); return; }
+      const r = e.target.closest && e.target.closest("[data-room]");
+      if (r && !this._chipDragged) { this._ri = Number(r.getAttribute("data-room")); this._shape = null; this._render(); }
+    });
+    this.shadowRoot.addEventListener("keydown", (e) => {
+      const r = e.target.closest && e.target.closest("[data-room]");
+      if (!r) return;
+      const i = Number(r.getAttribute("data-room"));
+      const n = this._rooms().length;
+      let to = null;
+      if (e.key === "Enter" || e.key === " ") to = i;
+      else if (e.key === "ArrowRight") to = Math.min(n - 1, i + 1);
+      else if (e.key === "ArrowLeft") to = Math.max(0, i - 1);
+      if (to == null) return;
+      e.preventDefault();
+      this._ri = to; this._shape = null; this._render();
+      const li = this.shadowRoot.querySelector(`ul.chips li[data-room="${to}"]`);
+      if (li) li.focus();
+    });
+    this.shadowRoot.addEventListener("toggle", (e) => {
+      const k = e.target.getAttribute && e.target.getAttribute("data-fold");
+      if (k) this._folds[k] = e.target.open;
+    }, true);
   }
   setConfig(config) {
     this._cfg = JSON.parse(JSON.stringify(config || {}));
@@ -2147,7 +2197,7 @@ class ArControlPanelCardEditor extends HTMLElement {
   _doors() { return Array.isArray(this._cfg.garage) ? this._cfg.garage.map((d) => (typeof d === "string" ? { entity: d } : d)).filter((d) => d && typeof d === "object") : []; }
   _streams() { return Array.isArray(this._cfg.rtsp) ? this._cfg.rtsp.filter((r) => r && typeof r === "object") : []; }
   _lgs(i) { const r = this._rooms()[i] || {}; return (Array.isArray(r.light_groups) ? r.light_groups : []).filter((g) => g && typeof g === "object"); }
-  _shapeOf() { return this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().map((r, i) => this._lgs(i).length).join(",") + "/" + this._rooms().length : 0) + ":" + this._streams().length + ":" + this._doors().length + ":" + this._amps().join(","); }
+  _shapeOf() { return this._tab + ":" + this._ri + ":" + this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().map((r, i) => this._lgs(i).length).join(",") + "/" + this._rooms().length : 0) + ":" + this._streams().length + ":" + this._doors().length + ":" + this._amps().join(","); }
 
   // The lights that can be renamed: a room's lights and its groups' lights
   // ("nm:3"), or in automatic mode every light the card found ("nm:auto").
@@ -2171,6 +2221,8 @@ class ArControlPanelCardEditor extends HTMLElement {
   _nameBox(key) {
     const box = document.createElement("details");
     box.className = "names";
+    box.setAttribute("data-fold", key);
+    box.open = !!this._folds[key];
     box.innerHTML = `<summary>✏️ Rename lights (optional)</summary><p class="hint"></p>`;
     box.querySelector("p").textContent = NAME_HINT;
     const f = this._form(key, this._nameSchema(key), this._nameData(key));
@@ -2224,6 +2276,7 @@ class ArControlPanelCardEditor extends HTMLElement {
     if (okey === "rooms" && c.mode === "manual") {
       const rooms = this._rooms();
       c.rooms = keys.map((k) => rooms[Number(k)]).filter(Boolean);
+      this._ri = Math.max(0, keys.indexOf(String(this._ri)));
       this._shape = null; // the room boxes move too: redraw
       this._emit();
       this._render();
@@ -2292,6 +2345,51 @@ class ArControlPanelCardEditor extends HTMLElement {
   // takes the touch (touch-action:none) so the rest of the list still scrolls.
   _wireSort(root) {
     const keysOf = (ul) => Array.from(ul.children).filter((x) => x.tagName === "LI").map((x) => x.getAttribute("data-key"));
+    // room tabs: tap selects, drag sideways reorders
+    root.addEventListener("pointerdown", (ev) => {
+      const chip = ev.target.closest && ev.target.closest("ul.chips li");
+      if (!chip || (ev.button != null && ev.button > 0)) return;
+      const ul = chip.parentNode;
+      const id = ev.pointerId;
+      const x0 = ev.clientX;
+      const y0 = ev.clientY;
+      const before = keysOf(ul).join("\n");
+      let on = false;
+      this._chipDragged = false;
+      const move = (e) => {
+        if (e.pointerId !== id) return;
+        if (!on) {
+          if (Math.abs(e.clientX - x0) + Math.abs(e.clientY - y0) < 8) return;
+          on = true;
+          this._dragging = true;
+          chip.classList.add("drag");
+        }
+        e.preventDefault();
+        let ref = null;
+        for (const s of Array.from(ul.children)) {
+          if (s === chip || s.tagName !== "LI") continue;
+          const r = s.getBoundingClientRect();
+          if (e.clientY < r.top || (e.clientY <= r.bottom && e.clientX < r.left + r.width / 2)) { ref = s; break; }
+        }
+        if (ref !== chip.nextSibling && ref !== chip) ul.insertBefore(chip, ref);
+      };
+      const end = (e) => {
+        if (e && e.pointerId !== id) return;
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", end);
+        window.removeEventListener("pointercancel", end);
+        if (!on) return;
+        chip.classList.remove("drag");
+        this._dragging = false;
+        this._chipDragged = true;
+        setTimeout(() => (this._chipDragged = false), 0);
+        const after = keysOf(ul);
+        if (after.join("\n") !== before) this._setOrder("rooms", after);
+      };
+      window.addEventListener("pointermove", move, { passive: false });
+      window.addEventListener("pointerup", end);
+      window.addEventListener("pointercancel", end);
+    });
     root.addEventListener("pointerdown", (ev) => {
       const grip = ev.target.closest && ev.target.closest(".grip");
       if (!grip || (ev.button != null && ev.button > 0)) return;
@@ -2308,11 +2406,13 @@ class ArControlPanelCardEditor extends HTMLElement {
         if (e.pointerId !== id) return;
         e.preventDefault();
         const y = e.clientY;
+        const x = e.clientX;
+        const wide = ul.classList.contains("chips");
         let ref = null;
         for (const s of Array.from(ul.children)) {
           if (s === li || s.tagName !== "LI") continue;
           const r = s.getBoundingClientRect();
-          if (y < r.top + r.height / 2) { ref = s; break; }
+          if (wide ? y < r.top || (y <= r.bottom && x < r.left + r.width / 2) : y < r.top + r.height / 2) { ref = s; break; }
         }
         if (ref !== li.nextSibling && ref !== li) ul.insertBefore(li, ref);
       };
@@ -2370,6 +2470,7 @@ class ArControlPanelCardEditor extends HTMLElement {
       const g = this._lgs(i)[j] || {};
       return { name: g.name || "", group_lights: arr(g.lights) };
     }
+    if (key === "spk") return { speakers: arr(c.speakers) };
     if (key === "sp") {
       const sp = c.spotify;
       return { sp_on: sp !== false && !(sp && sp.enabled === false), sp_entity: (sp && typeof sp === "object" && sp.entity) || (typeof sp === "string" ? sp : "") };
@@ -2425,6 +2526,12 @@ class ArControlPanelCardEditor extends HTMLElement {
       }
       b.textContent = k.indexOf("rtsp:") === 0 ? (this._streams()[i] || {}).name || "Camera " + (i + 1) : (this._rooms()[i] || {}).name || "Room " + (i + 1);
     });
+    this.shadowRoot.querySelectorAll("ul.chips li[data-room]").forEach((li) => {
+      const i = Number(li.getAttribute("data-room"));
+      li.textContent = (this._rooms()[i] || {}).name || "Room " + (i + 1);
+    });
+    const rn = this.shadowRoot.querySelector("[data-roomname]");
+    if (rn) rn.textContent = (this._rooms()[this._ri] || {}).name || "Room " + (this._ri + 1);
     this._refreshSorts();
   }
 
@@ -2460,6 +2567,8 @@ class ArControlPanelCardEditor extends HTMLElement {
       c.rooms = rooms;
     } else if (key === "rtc") {
       if (v.webrtc === false) c.webrtc = false; else delete c.webrtc;
+    } else if (key === "spk") {
+      if (arr(v.speakers).length) c.speakers = arr(v.speakers); else delete c.speakers;
     } else if (key === "sp" || key === "spd") {
       const old = c.spotify;
       const sp = old && typeof old === "object" ? Object.assign({}, old) : typeof old === "string" ? { entity: old } : {};
@@ -2519,10 +2628,10 @@ class ArControlPanelCardEditor extends HTMLElement {
 
   _room(op, i) {
     const rooms = this._rooms();
-    if (op === "add") rooms.push({ name: "Room " + (rooms.length + 1) });
-    else if (op === "del") rooms.splice(i, 1);
-    else if (op === "up" && i > 0) rooms.splice(i - 1, 0, rooms.splice(i, 1)[0]);
-    else if (op === "down" && i < rooms.length - 1) rooms.splice(i + 1, 0, rooms.splice(i, 1)[0]);
+    if (op === "add") { rooms.push({ name: "Room " + (rooms.length + 1) }); this._ri = rooms.length - 1; }
+    else if (op === "del") { rooms.splice(i, 1); this._ri = Math.max(0, Math.min(i, rooms.length - 1)); }
+    else if (op === "up" && i > 0) { rooms.splice(i - 1, 0, rooms.splice(i, 1)[0]); this._ri = i - 1; }
+    else if (op === "down" && i < rooms.length - 1) { rooms.splice(i + 1, 0, rooms.splice(i, 1)[0]); this._ri = i + 1; }
     this._cfg.rooms = rooms;
     this._shape = null; // order or count changed: redraw
     this._emit();
@@ -2568,7 +2677,8 @@ class ArControlPanelCardEditor extends HTMLElement {
     if (!h || !h.states) return [];
     const reg = h.entities || {};
     const rooms = this._cfg.mode === "manual" ? this._rooms().map((r) => ({ music: arr(r.music) })) : autoLayout(h, this._cfg).rooms;
-    return uniq([].concat.apply([], rooms.map((r) => r.music || []))).filter((e) => h.states[e] && !["spotify", "spotifyplus"].includes((reg[e] || {}).platform));
+    const only = arr(this._cfg.speakers);
+    return uniq([].concat.apply([], rooms.map((r) => r.music || []))).filter((e) => h.states[e] && !["spotify", "spotifyplus"].includes((reg[e] || {}).platform) && (!only.length || only.indexOf(e) >= 0));
   }
   _spAccount() {
     const h = this._hass;
@@ -2593,8 +2703,7 @@ class ArControlPanelCardEditor extends HTMLElement {
         : "Using " + friendly(h, acct) + " (" + acct + (((h.entities || {})[acct] || {}).platform ? ", from " + h.entities[acct].platform : "") + "). Playlists, liked songs and recent plays work; for search, add SpotifyPlus from HACS. If that's not your Spotify account, pick the right one below.";
     root.appendChild(hint);
     root.appendChild(this._form("sp", SP_SCHEMA, this._data("sp")));
-    const box = document.createElement("details");
-    box.className = "names";
+    const box = this._fold("spd", "");
     const list = (acct && h.states[acct].attributes.source_list) || [];
     box.innerHTML = `<summary>🔊 Match amps to Spotify Connect (optional)</summary><p class="hint"></p>`;
     box.querySelector("p").textContent = "The card matches each amp to its Spotify Connect device by name. When Spotify lists devices by a code instead of a name, pick the right one for each amp here (not sure which? choose one under Playing to on the card and listen which amp plays).";
@@ -2645,79 +2754,121 @@ class ArControlPanelCardEditor extends HTMLElement {
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: out }, bubbles: true, composed: true }));
   }
 
+  _fold(key, title) {
+    const d = document.createElement("details");
+    d.className = "names";
+    d.setAttribute("data-fold", key);
+    d.open = !!this._folds[key];
+    d.innerHTML = `<summary></summary>`;
+    d.querySelector("summary").textContent = title;
+    return d;
+  }
+
   _render() {
     if (!this._hass) return;
+    const manual = this._cfg.mode === "manual";
+    const rooms = this._rooms();
+    if (this._ri >= rooms.length) this._ri = Math.max(0, rooms.length - 1);
     this._shape = this._shapeOf();
     const root = this.shadowRoot;
     root.innerHTML = `<style>${EDITOR_CSS}</style>`;
     const add = (html) => { const d = document.createElement("div"); d.innerHTML = html; root.appendChild(d.firstElementChild); };
-    root.appendChild(this._form("mode", MODE_SCHEMA, this._data("mode")));
-    if (this._cfg.mode !== "manual") {
+    // tabs along the top
+    add(`<div class="etabs" role="tablist">${ED_TABS.map(([k, t]) => `<button role="tab" data-tab="${k}" aria-selected="${this._tab === k}" class="${this._tab === k ? "on" : ""}">${t}</button>`).join("")}</div>`);
+    const tab = this._tab;
+
+    if (tab === "general") {
+      root.appendChild(this._form("mode", MODE_SCHEMA, this._data("mode")));
+      add(`<p class="hint">${manual ? "Set up each room on the <b>Rooms</b> tab." : "Each Home Assistant area becomes a room. Choose “I pick my own rooms and entities” to choose every light, AC, speaker and blind yourself."}</p>`);
+    }
+
+    if (tab === "rooms" && !manual) {
       add(`<div class="sec">Automatic rooms</div>`);
-      add(`<p class="hint">Each Home Assistant area becomes a room. Choose "I pick my own rooms and entities" above to choose every light, AC, speaker and blind yourself.</p>`);
       root.appendChild(this._form("auto", AUTO_SCHEMA, this._data("auto")));
-      add(`<div class="sec">Order</div>`);
+      add(`<div class="sec">Room order</div>`);
       add(`<p class="hint">Drag ⠿ to put your rooms in the order you want.</p>`);
       root.appendChild(this._sortList("rooms"));
-      const lo = document.createElement("details");
-      lo.className = "names";
-      lo.innerHTML = `<summary>↕ Order of lights in each room</summary><p class="hint">Drag ⠿ to move a light or light group up or down in its room.</p><div data-autolights></div>`;
+      const lo = this._fold("autolo", "↕ Order of lights in each room");
+      lo.insertAdjacentHTML("beforeend", `<p class="hint">Drag ⠿ to move a light or light group up or down in its room.</p><div data-autolights></div>`);
       root.appendChild(lo);
       root.appendChild(this._nameBox("nm:auto"));
-      this._spSection(root, add);
-    this._garageSection(root, add);
-    this._camSection(root, add);
-      this._refreshSorts();
-      return;
     }
-    add(`<div class="sec">Rooms</div>`);
-    add(`<p class="hint">Pick what's in each room from the dropdowns.</p>`);
-    const rooms = this._rooms();
-    if (rooms.length > 1) {
-      add(`<div class="olabel">Room order <span>· drag ⠿ to move</span></div>`);
-      root.appendChild(this._sortList("rooms"));
-    }
-    rooms.forEach((r, i) => {
-      const box = document.createElement("div");
-      box.className = "room";
-      box.innerHTML = `<div class="rhead"><b></b>
-        <button class="ib" data-op="up" title="Move up"${i === 0 ? " disabled" : ""}>↑</button>
-        <button class="ib" data-op="down" title="Move down"${i === rooms.length - 1 ? " disabled" : ""}>↓</button>
-        <button class="ib" data-op="del" title="Remove room">✕</button></div>`;
-      box.querySelector("b").textContent = r.name || "Room " + (i + 1);
-      box.querySelectorAll("[data-op]").forEach((b) => b.addEventListener("click", () => this._room(b.getAttribute("data-op"), i)));
-      box.appendChild(this._form("room:" + i, ROOM_SCHEMA, this._data("room:" + i)));
-      // light groups: several lights shown as one tile that opens into a list
-      this._lgs(i).forEach((g, j) => {
-        const sub = document.createElement("div");
-        sub.className = "room";
-        sub.innerHTML = `<div class="rhead"><b></b><button class="ib" title="Remove light group">✕</button></div>`;
-        sub.querySelector("b").textContent = "💡 " + (g.name || "Group " + (j + 1));
-        sub.querySelector("button").addEventListener("click", () => this._lg("del", i, j));
-        sub.appendChild(this._form("lg:" + i + ":" + j, LGROUP_SCHEMA, this._data("lg:" + i + ":" + j)));
-        box.appendChild(sub);
+
+    if (tab === "rooms" && manual) {
+      // one tab per room; tap to open it, drag sideways to reorder
+      const chips = document.createElement("ul");
+      chips.className = "chips";
+      chips.setAttribute("aria-label", "Rooms");
+      rooms.forEach((r, i) => {
+        const li = document.createElement("li");
+        li.setAttribute("data-room", i);
+        li.setAttribute("data-key", String(i));
+        li.setAttribute("role", "tab");
+        li.setAttribute("tabindex", "0");
+        li.setAttribute("aria-selected", String(i === this._ri));
+        if (i === this._ri) li.className = "on";
+        li.textContent = r.name || "Room " + (i + 1);
+        chips.appendChild(li);
       });
-      const addg = document.createElement("button");
-      addg.className = "add sub";
-      addg.textContent = "+ Add a light group (e.g. Downlights)";
-      addg.addEventListener("click", () => this._lg("add", i));
-      box.appendChild(addg);
-      const ol = document.createElement("div");
-      ol.className = "olabel";
-      ol.innerHTML = `Order of lights <span>· drag ⠿ to move</span>`;
-      box.appendChild(ol);
-      box.appendChild(this._sortList("lo:" + i));
-      box.appendChild(this._nameBox("nm:" + i));
-      root.appendChild(box);
-    });
-    add(`<button class="add" data-add="room">+ Add a room</button>`);
-    root.querySelector('[data-add="room"]').addEventListener("click", () => this._room("add"));
-    add(`<div class="sec">Whole house</div>`);
-    add(`<p class="hint">These show on their own pages for the whole home.</p>`);
-    root.appendChild(this._form("house", HOUSE_SCHEMA, this._data("house")));
-    this._spSection(root, add);
-    this._garageSection(root, add);
-    this._camSection(root, add);
+      root.appendChild(chips);
+      add(`<div class="chipbar"><button class="add mini" data-add="room">+ Room</button><span>Tap a room to set it up · drag a room sideways to change the order</span></div>`);
+      root.querySelector('[data-add="room"]').addEventListener("click", () => this._room("add"));
+      const i = this._ri;
+      const r = rooms[i];
+      if (r) {
+        const box = document.createElement("div");
+        box.className = "rbody";
+        box.innerHTML = `<div class="rhead2"><b data-roomname></b>
+          <button class="ib" data-op="up" title="Move earlier" aria-label="Move room earlier"${i === 0 ? " disabled" : ""}>←</button>
+          <button class="ib" data-op="down" title="Move later" aria-label="Move room later"${i === rooms.length - 1 ? " disabled" : ""}>→</button>
+          <button class="del" data-op="del">Delete room</button></div>`;
+        box.querySelector("[data-roomname]").textContent = r.name || "Room " + (i + 1);
+        box.querySelectorAll("[data-op]").forEach((b) => b.addEventListener("click", () => this._room(b.getAttribute("data-op"), i)));
+        box.appendChild(this._form("room:" + i, ROOM_SCHEMA, this._data("room:" + i)));
+        // light groups
+        const lgs = this._lgs(i);
+        const gf = this._fold("lg:" + i, "💡 Light groups" + (lgs.length ? " (" + lgs.length + ")" : ""));
+        gf.insertAdjacentHTML("beforeend", `<p class="hint">Several lights shown as one tile that opens into a list (e.g. Downlights).</p>`);
+        lgs.forEach((g, j) => {
+          const sub = document.createElement("div");
+          sub.className = "room";
+          sub.innerHTML = `<div class="rhead"><b></b><button class="ib" title="Remove light group">✕</button></div>`;
+          sub.querySelector("b").textContent = "💡 " + (g.name || "Group " + (j + 1));
+          sub.querySelector("button").addEventListener("click", () => this._lg("del", i, j));
+          sub.appendChild(this._form("lg:" + i + ":" + j, LGROUP_SCHEMA, this._data("lg:" + i + ":" + j)));
+          gf.appendChild(sub);
+        });
+        const addg = document.createElement("button");
+        addg.className = "add sub";
+        addg.textContent = "+ Add a light group";
+        addg.addEventListener("click", () => { this._folds["lg:" + i] = true; this._lg("add", i); });
+        gf.appendChild(addg);
+        box.appendChild(gf);
+        // order of lights
+        const of = this._fold("lo:" + i, "↕ Order of lights");
+        of.insertAdjacentHTML("beforeend", `<p class="hint">Drag ⠿ to move a light or light group up or down.</p>`);
+        of.appendChild(this._sortList("lo:" + i));
+        box.appendChild(of);
+        box.appendChild(this._nameBox("nm:" + i));
+        root.appendChild(box);
+      } else add(`<p class="hint">No rooms yet. Tap + Room.</p>`);
+    }
+
+    if (tab === "house") {
+      if (manual) {
+        add(`<p class="hint">These show on their own pages for the whole home.</p>`);
+        root.appendChild(this._form("house", HOUSE_SCHEMA, this._data("house")));
+      } else add(`<p class="hint">In automatic mode, cameras, security (alarm, locks, door and motion sensors) and utilities are found by themselves. The “Whole house” switch is on the Rooms tab.</p>`);
+    }
+
+    if (tab === "music") {
+      add(`<div class="sec">Speakers</div>`);
+      add(`<p class="hint">Leave empty to show every speaker, like now. Pick some, and only those show on the Music pages (every room and Whole house) and as Spotify's amps.</p>`);
+      root.appendChild(this._form("spk", SPK_SCHEMA, this._data("spk")));
+      this._spSection(root, add);
+    }
+    if (tab === "garage") this._garageSection(root, add);
+    if (tab === "cameras") this._camSection(root, add);
     this._refreshSorts();
   }
 }
