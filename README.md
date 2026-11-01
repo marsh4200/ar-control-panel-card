@@ -148,6 +148,15 @@ With no settings, each Home Assistant **area** becomes a room and a **Whole hous
 
 Hidden and config/diagnostic entities are left out, and anything without an area goes in an **Other** room. In the editor you can still choose which areas to show, leave entities out, and mark switches that are really lights.
 
+## Scenes & Automations (with Auto & Scenes)
+
+Install the **Auto & Scenes** integration (HACS, `marsh4200/auto-and-scenes`) and a **Scenes** page appears in the bottom bar, in every room and on Whole house, plus a **Scenes & Automations** tile on the Home page. Without the integration, nothing extra shows.
+
+- **Scenes:** tap a tile to activate the scene. The pencil changes it, and **New scene** adds one. For each device, choose On/Off with **brightness** for lights, Open/Closed with **position** for curtains, and the AC's mode with **temperature**. **Use how they are now** copies how your devices are set right now, and **Try it** previews the scene before you save.
+- **Automations:** each one shows when it runs ("At sunset", "At 06:30 · Weekdays") and when it last ran. Use the switch to turn it on or off, and ▶ to run it now. Tap one, or **New automation**, to change it in the Auto & Scenes panel.
+
+The card reads and saves through Auto & Scenes itself, so the card and its sidebar panel always show the same scenes and automations, and its safety rules still apply.
+
 ## Spotify
 
 With a Spotify account in Home Assistant, the Music page gets a **Spotify** tab next to *Now playing* and *Library*. Spotify plays on the amp picked at the top of the page, through **Spotify Connect**.

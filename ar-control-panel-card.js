@@ -14,6 +14,7 @@ const CATS = [
   { key: "shades", title: "Shades", icon: "shades" },
   { key: "utilities", title: "Utilities", icon: "plug" },
   { key: "garage", title: "Garage", icon: "garage" },
+  { key: "autoscenes", title: "Scenes", home: "Scenes & Automations", icon: "magic" },
 ];
 const ROOM_KEYS = ["lights", "climate", "music", "shades", "scenes", "presence"];
 const WX = {
@@ -59,6 +60,12 @@ const P = {
   link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
   garage: '<path d="M2 21V9l10-6 10 6v12"/><path d="M6 21v-9h12v9M6 15h12M6 18h12"/>',
   garageOpen: '<path d="M2 21V9l10-6 10 6v12"/><path d="M6 21v-9h12v9M6 14h12"/>',
+  magic: '<path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8l1.4 1.4M17.8 6.2l1.4-1.4M12.2 6.2l-1.4-1.4"/><path d="M3 21l9-9"/>',
+  robot: '<rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01M9 17h6"/>',
+  pencil: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+  eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
   heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>',
   shuffle: '<path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>',
@@ -250,6 +257,43 @@ input[type=range]:disabled{opacity:.35}
 .dots i.f{background:var(--acc)}
 .empty{margin-top:40px;text-align:center;font-size:15px;font-weight:600;color:rgba(var(--ink-rgb),.66);line-height:1.5;padding:0 20px}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);max-width:calc(100% - 32px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transform:translateX(-50%);padding:10px 16px;border-radius:999px;background:rgba(14,15,19,.9);border:1px solid var(--line);font-size:14px;font-weight:700;z-index:9}
+/* ---- Scenes & Automations (Auto & Scenes) ---- */
+.asgrid{margin-top:14px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.astile{position:relative;min-height:118px;border-radius:22px;background:var(--glass);border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.10);transition:background .3s,border-color .3s,box-shadow .3s}
+.astile.hit{background:rgba(40,33,24,.7);border-color:rgba(var(--acc-rgb),.5);box-shadow:0 0 24px -8px rgba(var(--acc-rgb),.6)}
+.astile.hit .asic{background:linear-gradient(145deg,var(--acc),#e89a3c);color:#2a1a06}
+.astm,.astile.new{all:unset;box-sizing:border-box;cursor:pointer;width:100%;height:100%;min-height:118px;padding:14px;display:flex;flex-direction:column;gap:6px;-webkit-tap-highlight-color:transparent}
+.astm:focus-visible,.astile.new:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:22px}
+.astile.new{border:1px dashed rgba(var(--acc-rgb),.5);color:var(--acc)}
+.asic{width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;color:rgba(var(--ink-rgb),.85);margin-bottom:4px}
+.astile.new .asic{background:rgba(var(--acc-rgb),.12);color:var(--acc)}
+.astile b{font-size:15px;padding-right:30px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.astile small{font-size:12px;font-weight:600;color:rgba(var(--ink-rgb),.55)}
+.ased{position:absolute;right:6px;top:6px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.07);color:rgba(var(--ink-rgb),.75);display:flex;align-items:center;justify-content:center}
+.ascard{display:flex;align-items:center;gap:8px;padding:10px 12px 10px 10px;border-radius:20px}
+.asm{all:unset;flex:1;min-width:0;display:flex;gap:12px;align-items:center;cursor:pointer}
+.asm:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:12px}
+.asav{width:42px;height:42px;flex:none;border-radius:14px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;color:var(--acc)}
+.ast{display:flex;flex-direction:column;min-width:0}.ast b{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ast small{font-size:12px;font-weight:600;color:rgba(var(--ink-rgb),.66)}.ast em{font-style:normal;font-size:11px;font-weight:600;color:rgba(var(--ink-rgb),.45);margin-top:2px}
+.asside{display:flex;flex-direction:column;align-items:center;gap:8px}
+.asgo{width:44px;height:44px;border-radius:50%;border:1px solid rgba(var(--acc-rgb),.45);background:rgba(var(--acc-rgb),.12);color:var(--acc);display:flex;align-items:center;justify-content:center}
+.asadd{all:unset;box-sizing:border-box;cursor:pointer;margin-top:12px;width:100%;height:48px;border-radius:16px;border:1px dashed rgba(var(--acc-rgb),.5);color:var(--acc);display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700}
+.asadd:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.asfoot{margin:10px 4px 0;font-size:12px;color:rgba(var(--ink-rgb),.5);font-weight:600}
+.asbar{margin-top:14px;display:flex;align-items:center;gap:10px}.asbar b{flex:1;text-align:center;font-size:15px}
+.aslbl{display:block;margin:16px 4px 6px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:rgba(var(--ink-rgb),.55)}
+.astin{all:unset;box-sizing:border-box;display:block;width:100%;height:48px;border-radius:14px;padding:0 14px;font-size:16px;color:var(--ink);background:var(--glass);border:1px solid var(--line)}
+.astin:focus{border-color:rgba(var(--acc-rgb),.6)}
+.asicons{display:flex;gap:8px;flex-wrap:wrap}.asicons button{width:44px;height:44px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:rgba(var(--ink-rgb),.75);display:flex;align-items:center;justify-content:center}
+.asicons button.on{border-color:rgba(var(--acc-rgb),.6);background:rgba(var(--acc-rgb),.16);color:var(--acc)}
+.asblk{padding:12px 14px;border-radius:18px;margin-bottom:10px}
+.asdh{display:flex;align-items:center;gap:10px;color:var(--acc)}.asdh b{flex:1;min-width:0;color:var(--ink);font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asdx{flex:none;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.06);color:rgba(var(--ink-rgb),.6);display:flex;align-items:center;justify-content:center}
+.asseg{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}.asseg button{flex:1;min-width:64px;height:40px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:rgba(var(--ink-rgb),.7);font-size:13px;font-weight:700}
+.asseg button.on{background:rgba(var(--acc-rgb),.18);border-color:rgba(var(--acc-rgb),.55);color:#ffe2b8}
+.asslab{display:flex;justify-content:space-between;margin:12px 2px 2px;font-size:13px;font-weight:600;color:rgba(var(--ink-rgb),.66)}.asslab b{color:var(--ink)}
+.astwo{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}.astwo .act{padding:0 8px;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px}
+.asdel{all:unset;box-sizing:border-box;cursor:pointer;margin-top:18px;width:100%;height:46px;border-radius:16px;border:1px solid rgba(255,107,107,.4);color:#ffb0b0;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700}
+.asdel.sure{background:rgba(255,107,107,.18)}
 /* ---- Spotify on the Music page ---- */
 .spdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#1ed760;margin-right:7px;vertical-align:1px;box-shadow:0 0 8px rgba(30,215,96,.7)}
 .sto{all:unset;box-sizing:border-box;cursor:pointer;margin-top:14px;width:100%;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:18px;-webkit-tap-highlight-color:transparent}
@@ -419,6 +463,96 @@ function spFind(h) {
   return ids.find((e) => (reg[e] || {}).platform === "spotifyplus") || ids.find((e) => (reg[e] || {}).platform === "spotify")
     || ids.find((e) => !(reg[e] || {}).platform && /^media_player\.spotify/.test(e) && browses(e)) || null;
 }
+// --- Auto & Scenes (separate integration) ------------------------------------------
+// The card reads and saves through its websocket API (auto_and_scenes/info,
+// list, save, delete), using exactly the same scene format as its own panel,
+// so both always show the same scenes. Nothing in that integration changes.
+const AS_ICONS = ["mdi:palette", "mdi:weather-night", "mdi:white-balance-sunny", "mdi:sofa", "mdi:movie-open", "mdi:silverware-fork-knife", "mdi:bed", "mdi:party-popper", "mdi:home-export-outline", "mdi:home-import-outline", "mdi:book-open-variant", "mdi:candle"];
+const AS_SCENE_STATES = {
+  light: [["on", "On"], ["off", "Off"]], switch: [["on", "On"], ["off", "Off"]], fan: [["on", "On"], ["off", "Off"]],
+  input_boolean: [["on", "On"], ["off", "Off"]], media_player: [["on", "On"], ["off", "Off"]],
+  cover: [["open", "Open"], ["closed", "Closed"]], lock: [["locked", "Locked"], ["unlocked", "Unlocked"]],
+};
+const AS_DAYS = [["mon", "Mon"], ["tue", "Tue"], ["wed", "Wed"], ["thu", "Thu"], ["fri", "Fri"], ["sat", "Sat"], ["sun", "Sun"]];
+const asList = (v) => (v === undefined || v === null ? [] : Array.isArray(v) ? v : [v]);
+const asDomain = (eid) => String(eid || "").split(".")[0];
+function asParseScene(cfg) {
+  const m = { name: cfg.name || "", icon: cfg.icon || "mdi:palette", entities: [] };
+  for (const [eid, raw] of Object.entries(cfg.entities || {})) {
+    const val = typeof raw === "object" && raw !== null ? Object.assign({}, raw) : { state: raw === true ? "on" : raw === false ? "off" : raw };
+    const row = { entity_id: eid, state: String(val.state != null ? val.state : "on"), extra: {} };
+    delete val.state;
+    if ("brightness" in val) { row.brightness_pct = Math.max(1, Math.round(Number(val.brightness) / 2.55)); delete val.brightness; }
+    if ("current_position" in val) { row.position = Number(val.current_position); delete val.current_position; }
+    if ("temperature" in val) { row.temperature = Number(val.temperature); delete val.temperature; }
+    row.extra = val;
+    m.entities.push(row);
+  }
+  return m;
+}
+function asBuildScene(m) {
+  const entities = {};
+  for (const row of m.entities) {
+    const d = asDomain(row.entity_id);
+    const out = { state: row.state };
+    const isOff = row.state === "off" || row.state === "closed";
+    if (!isOff) Object.assign(out, row.extra || {});
+    if (d === "light" && row.state === "on" && row.brightness_pct) out.brightness = Math.round(Number(row.brightness_pct) * 2.55);
+    if (d === "cover" && row.state === "open" && row.position !== undefined && row.position !== "") out.current_position = Number(row.position);
+    if (d === "climate" && row.state !== "off" && row.temperature) out.temperature = Number(row.temperature);
+    entities[row.entity_id] = out;
+  }
+  const cfg = { name: m.name.trim(), entities };
+  if (m.icon) cfg.icon = m.icon;
+  return cfg;
+}
+function asMinutes(d) {
+  if (d === undefined || d === null || d === "") return 0;
+  if (typeof d === "number") return d / 60;
+  if (typeof d === "object") return (d.hours || 0) * 60 + (d.minutes || 0) + (d.seconds || 0) / 60;
+  const neg = String(d).trim().indexOf("-") === 0;
+  const parts = String(d).replace("-", "").split(":").map(Number);
+  const total = (parts[0] || 0) * 60 + (parts[1] || 0) + (parts[2] || 0) / 60;
+  return neg ? -total : total;
+}
+// "At sunset · Weekdays" - the same wording as the Auto & Scenes panel.
+function asSummary(cfg, nameOf) {
+  const parts = asList(cfg.triggers != null ? cfg.triggers : cfg.trigger).map((t) => {
+    const kind = t.trigger || t.platform;
+    if (kind === "time" && typeof t.at === "string") return "At " + t.at.slice(0, 5);
+    if (kind === "sun") {
+      const o = Math.round(asMinutes(t.offset));
+      return (o === 0 ? "At" : Math.abs(o) + " min " + (o < 0 ? "before" : "after")) + " " + t.event;
+    }
+    if (kind === "state") {
+      const to = t.to == null || t.to === "" ? "changes" : t.to === "on" ? "turns on" : t.to === "off" ? "turns off" : t.to === "home" ? "arrives home" : t.to === "not_home" ? "leaves home" : t.to === "open" ? "opens" : t.to === "closed" ? "closes" : "becomes " + t.to;
+      const m = Math.round(asMinutes(t.for));
+      return "When " + nameOf(asList(t.entity_id)[0]) + " " + to + (m > 0 ? " for " + m + " min" : "");
+    }
+    throw new Error("advanced");
+  });
+  let text = parts.join(" or ") || "No trigger";
+  asList(cfg.conditions != null ? cfg.conditions : cfg.condition).forEach((c) => {
+    if (c.condition !== "time") return;
+    const days = asList(c.weekday);
+    if (days.length && days.length < 7) {
+      const wk = ["mon", "tue", "wed", "thu", "fri"];
+      if (days.length === 5 && wk.every((d) => days.indexOf(d) >= 0)) text += " · Weekdays";
+      else if (days.length === 2 && days.indexOf("sat") >= 0 && days.indexOf("sun") >= 0) text += " · Weekends";
+      else text += " · " + AS_DAYS.filter(([k]) => days.indexOf(k) >= 0).map(([, l]) => l).join(", ");
+    }
+    if (c.after && c.before) text += " · " + String(c.after).slice(0, 5) + "–" + String(c.before).slice(0, 5);
+  });
+  return text;
+}
+function asRan(iso) {
+  if (!iso) return "Never ran";
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (s < 60) return "Ran just now";
+  if (s < 3600) return "Ran " + Math.round(s / 60) + " min ago";
+  if (s < 86400) return "Ran " + Math.round(s / 3600) + " h ago";
+  return "Ran " + Math.round(s / 86400) + " d ago";
+}
 // Put things in the order you dragged them into. Anything not in `order` keeps
 // its usual place, after the ones you ordered.
 const byOrder = (items, order, keyOf) => {
@@ -567,6 +701,7 @@ class ArControlPanel extends HTMLElement {
   set hass(h) {
     const prev = this._hass;
     this._hass = h;
+    if (h && h.callWS) this._asCheck(h);
     // Rebuild the rooms when areas, devices or entities change (HA replaces
     // these objects on every registry update) or an entity appears/disappears.
     const n = h && h.states ? Object.keys(h.states).length : 0;
@@ -578,6 +713,107 @@ class ArControlPanel extends HTMLElement {
     this._schedule();
   }
   get hass() { return this._hass; }
+  // Auto & Scenes: look for it once (and again if its panel appears later).
+  _asCheck(h) {
+    const has = h.panels ? !!h.panels["auto-scenes"] : null;
+    if (!this._as) { this._as = { ok: null }; if (has !== false) this.asDetect(); else this._as.ok = false; return; }
+    if (this._as.ok === false && has && !this._as.retried) { this._as.retried = true; this.asDetect(); }
+  }
+  async asDetect() {
+    try {
+      const info = await this._hass.callWS({ type: "auto_and_scenes/info" });
+      this._as = Object.assign(this._as || {}, { ok: true, info, scenes: null, autos: null });
+      await this.asLoad();
+    } catch (e) {
+      this._as = Object.assign(this._as || {}, { ok: false });
+    }
+    this._schedule(true);
+  }
+  async asLoad() {
+    const A = this._as;
+    if (!A || !A.ok) return;
+    try {
+      const [sc, au] = await Promise.all([
+        this._hass.callWS({ type: "auto_and_scenes/list", kind: "scene" }),
+        this._hass.callWS({ type: "auto_and_scenes/list", kind: "automation" }),
+      ]);
+      const byName = (a, b) => String(a.name || "").localeCompare(String(b.name || ""));
+      A.scenes = (sc || []).sort(byName);
+      A.autos = (au || []).sort(byName);
+      A.err = null;
+    } catch (e) {
+      A.err = (e && e.message) || "Couldn't load from Auto & Scenes";
+    }
+    this._schedule(true);
+  }
+  asEnt(kind, item) {
+    if (item.entity_id && this.has(item.entity_id)) return item.entity_id;
+    const S = this._hass.states;
+    const hit = Object.keys(S).find((e) => e.indexOf(kind + ".") === 0 && S[e].attributes.id === item.id);
+    return hit || item.entity_id || null;
+  }
+  asIcon(icon, size) {
+    return customElements.get("ha-icon") ? `<ha-icon icon="${esc(icon)}" style="--mdc-icon-size:${size || 24}px"></ha-icon>` : svg("magic", size || 24);
+  }
+  asRow(eid) {
+    const st = this.st(eid);
+    const d = asDomain(eid);
+    const row = { entity_id: eid, state: "on", extra: {} };
+    if (!st) return row;
+    if (d === "climate") { row.state = st.state; if (st.attributes.temperature) row.temperature = st.attributes.temperature; return row; }
+    const valid = (AS_SCENE_STATES[d] || []).map(([v]) => v);
+    row.state = valid.indexOf(st.state) >= 0 ? st.state : valid[0] || st.state;
+    if (d === "light" && st.state === "on" && st.attributes.brightness) row.brightness_pct = Math.max(1, Math.round(st.attributes.brightness / 2.55));
+    if (d === "cover" && st.attributes.current_position !== undefined) row.position = st.attributes.current_position;
+    return row;
+  }
+  asOpenPanel() {
+    history.pushState(null, "", "/auto-scenes");
+    window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
+  }
+  async asSave() {
+    const d = this._asEd;
+    if (!d.name.trim()) { this._say("Give the scene a name"); return; }
+    if (!d.entities.length) { this._say("Add at least one device"); return; }
+    const msg = { type: "auto_and_scenes/save", kind: "scene", config: asBuildScene(d) };
+    if (d.id) msg.item_id = d.id;
+    try {
+      await this._hass.callWS(msg);
+      this._asEd = null;
+      this._say("Saved " + d.name.trim());
+      await this.asLoad();
+    } catch (e) {
+      this._say((e && e.message) || "Couldn't save");
+    }
+  }
+  async asDelete() {
+    const d = this._asEd;
+    if (!this._asConfirm) { this._asConfirm = true; this._schedule(true); setTimeout(() => { this._asConfirm = false; this._schedule(true); }, 4000); return; }
+    this._asConfirm = false;
+    try {
+      await this._hass.callWS({ type: "auto_and_scenes/delete", kind: "scene", item_id: d.id });
+      this._asEd = null;
+      this._say("Deleted " + d.name);
+      await this.asLoad();
+    } catch (e) {
+      this._say((e && e.message) || "Couldn't delete");
+    }
+  }
+  _asPickHtml() {
+    const A = this._as || {};
+    const doms = new Set(((A.info && A.info.allowed_domains) || Object.keys(AS_SCENE_STATES).concat(["climate"])).filter((x) => x !== "lock" || (A.info && A.info.allowed_domains)));
+    const taken = new Set(((this._asEd && this._asEd.entities) || []).map((r) => r.entity_id));
+    const q = (this._asQ || "").trim().toLowerCase();
+    const reg = this._hass.entities || {};
+    const list = Object.keys(this._hass.states)
+      .filter((e) => doms.has(asDomain(e)) && !(reg[e] && reg[e].hidden) && !taken.has(e))
+      .map((e) => ({ e, n: this.name(e) }))
+      .filter((x) => !q || x.n.toLowerCase().indexOf(q) >= 0 || x.e.indexOf(q) >= 0)
+      .sort((a, b) => a.n.localeCompare(b.n))
+      .slice(0, 150);
+    const ic = { light: "bulb", cover: "shades", climate: "thermo", media_player: "speaker", fan: "fan", lock: "lock" };
+    return list.length ? list.map((x) => `<button data-a="aspick" data-e="${esc(x.e)}">${svg(ic[asDomain(x.e)] || "plug", 20)}<span><b>${esc(x.n)}</b><small>${esc(this.st(x.e).state)}</small></span></button>`).join("") : `<div class="note">Nothing found</div>`;
+  }
   set narrow(v) { this._narrow = v; this._schedule(); }
   set panel(v) { this._panel = v; }
 
@@ -589,7 +825,7 @@ class ArControlPanel extends HTMLElement {
       if (e.key === "Enter" && e.target.getAttribute && e.target.getAttribute("data-a") === "spq") { clearTimeout(this._spT); this.spSearch(e.target.value); e.target.blur(); }
     });
     // after typing in Spotify search, catch up with anything skipped meanwhile
-    this.shadowRoot.addEventListener("focusout", (e) => { if (e.target.getAttribute && e.target.getAttribute("data-a") === "spq") setTimeout(() => this._schedule(true), 0); });
+    this.shadowRoot.addEventListener("focusout", (e) => { if (e.target.getAttribute && (e.target.getAttribute("data-a") === "spq" || e.target.getAttribute("data-keep"))) setTimeout(() => this._schedule(true), 0); });
     this.shadowRoot.addEventListener("pointerdown", (e) => { if (e.target.type === "range") this._busy++; });
     this.shadowRoot.addEventListener("pointerup", () => setTimeout(() => (this._busy = Math.max(0, this._busy - 1)), 300));
     // Hold a garage door for its details (like Home Assistant's hold action).
@@ -713,6 +949,7 @@ class ArControlPanel extends HTMLElement {
     if (!p || !r) return [];
     if (cat === "music") return this.speakers();
     if (cat === "garage") return this.doors().map((d) => d.entity);
+    if (cat === "autoscenes") return [];
     const src = cat === "cameras" || cat === "security" || cat === "utilities" ? p[cat] : r[cat];
     return (src || []).filter((e) => this.has(e));
   }
@@ -819,7 +1056,7 @@ class ArControlPanel extends HTMLElement {
   }
   cats() {
     const p = this.panelCfg();
-    return CATS.filter((c) => this.ents(c.key).length || (c.key === "cameras" && p && p.rtsp && p.rtsp.length) || (c.key === "music" && this.spAcct()));
+    return CATS.filter((c) => (c.key === "autoscenes" ? !!(this._as && this._as.ok) : this.ents(c.key).length || (c.key === "cameras" && p && p.rtsp && p.rtsp.length) || (c.key === "music" && this.spAcct())));
   }
   weather() {
     const h = this._hass;
@@ -1200,6 +1437,13 @@ class ArControlPanel extends HTMLElement {
       const st = this.st(a).state;
       return { s: this.alarmName(st), warn: st === "triggered", ok: st === "disarmed" };
     }
+    if (cat === "autoscenes") {
+      const A = this._as || {};
+      const sc = (A.scenes || []).length;
+      const au = A.autos || [];
+      const on = au.filter((it) => { const e = this.asEnt("automation", it); return e && this.st(e).state === "on"; }).length;
+      return { s: sc + (sc === 1 ? " scene" : " scenes") + " · " + (au.length ? on + " of " + au.length + " automations on" : "no automations") };
+    }
     if (cat === "garage") {
       const st = this.doors().map((d) => this.doorState(d));
       const n = st.filter((x) => x.open).length;
@@ -1221,6 +1465,9 @@ class ArControlPanel extends HTMLElement {
   _click(ev) {
     const b = ev.target.closest("[data-a]");
     if (!b) return;
+    // a tap on a button ends typing (iPhones don't always do that themselves)
+    const typing = this.shadowRoot.activeElement;
+    if (typing && typing !== b && typing.getAttribute && typing.getAttribute("data-keep")) typing.blur();
     const a = b.getAttribute("data-a");
     const v = b.getAttribute("data-v");
     const e = b.getAttribute("data-e");
@@ -1311,6 +1558,34 @@ class ArControlPanel extends HTMLElement {
       case "spsel": this._spAll = false; this.spMove(this._spAmp, v); break;
       case "spall": this._spAll = true; this._schedule(true); break;
       case "spwake": this.spWake(this._spAmp); break;
+      // --- Auto & Scenes
+      case "asv": this._set({ asv: v }); this.asLoad(); break;
+      case "asrun": {
+        const it = (this._asRefs || [])[Number(v)];
+        const ent = it && this.asEnt("scene", it);
+        if (!ent) { this._say("Still loading, try again in a moment"); break; }
+        this.call("scene", "turn_on", { entity_id: ent });
+        this._asHit = it.id;
+        clearTimeout(this._asHitT);
+        this._asHitT = setTimeout(() => { this._asHit = null; this._schedule(true); }, 1600);
+        this._say((it.name || "Scene") + " on");
+        break;
+      }
+      case "asedit": { const it = (this._asRefs || [])[Number(v)]; if (it) { this._asEd = Object.assign({ id: it.id }, asParseScene(it.config || {})); this._asConfirm = false; const rt = this.shadowRoot.querySelector(".root"); if (rt) rt.scrollTop = 0; this._schedule(true); } break; }
+      case "asnew": this._asEd = { name: "", icon: "mdi:palette", entities: [] }; this._asConfirm = false; this._schedule(true); break;
+      case "asback": this._asEd = null; this._schedule(true); break;
+      case "asicon": this._asEd.icon = v; this._schedule(true); break;
+      case "asst": { const [i, val] = v.split("|"); const row = this._asEd.entities[Number(i)]; if (row) row.state = val; this._schedule(true); break; }
+      case "asrm": this._asEd.entities.splice(Number(v), 1); this._schedule(true); break;
+      case "asadd": this._asQ = ""; this._sheet = "aspick"; this._schedule(true); setTimeout(() => { const q = this.shadowRoot.querySelector('[data-a="asq"]'); if (q) q.focus(); }, 60); break;
+      case "aspick": this._asEd.entities.push(this.asRow(e)); this._sheet = null; this._schedule(true); break;
+      case "ascap": this._asEd.entities = this._asEd.entities.map((r) => Object.assign(this.asRow(r.entity_id), { extra: r.extra || {} })); this._say("Copied how your devices are now"); break;
+      case "astry": { const cfg = asBuildScene(this._asEd); if (!Object.keys(cfg.entities).length) { this._say("Add a device first"); break; } this.call("scene", "apply", { entities: cfg.entities }); this._say("Trying it on your devices"); break; }
+      case "assave": this.asSave(); break;
+      case "asdel": this.asDelete(); break;
+      case "astog": { const s2 = this.st(e); if (s2) this.call("automation", s2.state === "on" ? "turn_off" : "turn_on", { entity_id: e }); break; }
+      case "asgo": if (!e) { this._say("Still loading, try again in a moment"); break; } this.call("automation", "trigger", { entity_id: e, skip_condition: true }); this._say("Automation started"); break;
+      case "asopen": this.asOpenPanel(); break;
       case "spm": this.call("media_player", v, { entity_id: e }); break;
       case "lib": {
         const it = this._lib && this._lib.items[Number(v)];
@@ -1385,6 +1660,10 @@ class ArControlPanel extends HTMLElement {
   }
   _input(ev) {
     const t = ev.target;
+    const ia = t.getAttribute && t.getAttribute("data-a");
+    if (ia === "asname" && this._asEd) { this._asEd.name = t.value; return; }
+    if (ia === "asq") { this._asQ = t.value; const box = this.shadowRoot.querySelector("[data-aslist]"); if (box) box.innerHTML = this._asPickHtml(); return; }
+    if (ia === "asval") { const o = t.parentNode.querySelector("[data-asout]"); if (o) o.textContent = t.value + (t.getAttribute("data-k") === "temperature" ? "°" : "%"); }
     if (t.getAttribute && t.getAttribute("data-a") === "spq" && this._sp) {
       this._sp.q = t.value;
       clearTimeout(this._spT);
@@ -1403,12 +1682,16 @@ class ArControlPanel extends HTMLElement {
       if (g) {
         const dims = g.ids.filter((x) => this.dimmable(x));
         const rest = g.ids.filter((x) => dims.indexOf(x) < 0);
+        this._holdBri(dims, v);
         if (v > 0) {
           if (dims.length) this.call("light", "turn_on", { entity_id: dims, brightness_pct: v });
           if (rest.length) this.call("homeassistant", "turn_on", { entity_id: rest });
         } else this.call("homeassistant", "turn_off", { entity_id: g.ids });
       }
-    } else if (a === "bri") this.call("light", v > 0 ? "turn_on" : "turn_off", v > 0 ? { entity_id: e, brightness_pct: v } : { entity_id: e });
+    } else if (a === "asval") {
+      const row = this._asEd && this._asEd.entities[Number(t.getAttribute("data-i"))];
+      if (row) row[t.getAttribute("data-k")] = v;
+    } else if (a === "bri") this._holdBri([e], v), this.call("light", v > 0 ? "turn_on" : "turn_off", v > 0 ? { entity_id: e, brightness_pct: v } : { entity_id: e });
     else if (a === "vol") this.call("media_player", "volume_set", { entity_id: e, volume_level: v / 100 });
     else if (a === "pos") this.call("cover", "set_cover_position", { entity_id: e, position: v });
     this._busy = 0;
@@ -1428,12 +1711,13 @@ class ArControlPanel extends HTMLElement {
       if (s.tab !== "home" && !cats.some((c) => c.key === s.tab)) s.tab = "home";
       body = this._top() + (this["_" + s.tab] ? this["_" + s.tab]() : this._home()) + this._dock(cats);
     }
-    const sheet = this._sheet === "rooms" ? this._roomsSheet() : this._sheet === "spdev" ? this._spDevSheet() : this._pin ? this._pinSheet() : "";
+    const sheet = this._sheet === "rooms" ? this._roomsSheet() : this._sheet === "spdev" ? this._spDevSheet() : this._sheet === "aspick" && this._asEd ? this._asPickSheet() : this._pin ? this._pinSheet() : "";
     const toast = this._toast ? `<div class="toast" role="status">${esc(this._toast)}</div>` : "";
     const html = `<div class="root"><div class="wrap">${body}</div></div>${sheet}${toast}`;
     // Typing in Spotify search: only refresh the results under the box, so
     // the keyboard stays up.
     const act = this.shadowRoot.activeElement;
+    if (act && act.getAttribute && act.getAttribute("data-keep")) { this._lastHtml = null; return; }
     if (act && act.getAttribute && act.getAttribute("data-a") === "spq" && this._spBody != null) {
       const box = this.shadowRoot.querySelector("[data-spbody]");
       if (box) {
@@ -1527,7 +1811,7 @@ class ArControlPanel extends HTMLElement {
       .map((c) => {
         const sm = this.summary(c.key);
         const cls = sm.warn ? "warn" : sm.ok ? "ok" : sm.lit && c.key === "lights" ? "lit" : "";
-        return `<button class="glass card" data-a="go" data-v="${c.key}">${sm.lit && c.key === "lights" ? '<div class="glow"></div>' : ""}<div class="ic ${cls}">${svg(c.icon)}</div><div><div class="t">${esc(c.title)}</div><div class="s">${esc(sm.s)}</div></div></button>`;
+        return `<button class="glass card" data-a="go" data-v="${c.key}">${sm.lit && c.key === "lights" ? '<div class="glow"></div>' : ""}<div class="ic ${cls}">${svg(c.icon)}</div><div><div class="t">${esc(c.home || c.title)}</div><div class="s">${esc(sm.s)}</div></div></button>`;
       })
       .join("");
     return `<div class="glass hero"><div style="flex:1"><div class="clock">${pad(d.getHours())}:${pad(d.getMinutes())}</div><div class="date">${esc(date)}</div></div>${wx}</div>${sc}<div class="grid">${cards}</div>`;
@@ -1541,7 +1825,21 @@ class ArControlPanel extends HTMLElement {
   }
   pct(e) {
     const s = this.st(e);
-    return this.isOn(e) ? (s.attributes.brightness != null ? Math.round((s.attributes.brightness / 255) * 100) : 100) : 0;
+    const real = this.isOn(e) ? (s.attributes.brightness != null ? Math.round((s.attributes.brightness / 255) * 100) : 100) : 0;
+    // Just set with a slider: show that until the light reports it (some
+    // lights report late or not at all), so the slider doesn't jump back.
+    const p = this._pendBri && this._pendBri[e];
+    if (p) {
+      if (Math.abs(real - p.v) <= 2 || Date.now() - p.t > 8000) delete this._pendBri[e];
+      else return p.v;
+    }
+    return real;
+  }
+  _holdBri(ids, v) {
+    this._pendBri = this._pendBri || {};
+    ids.forEach((x) => (this._pendBri[x] = { v, t: Date.now() }));
+    clearTimeout(this._pendBriT);
+    this._pendBriT = setTimeout(() => this._schedule(true), 8100);
   }
   // Light groups: ones set up in the card (light_groups) plus Home Assistant's
   // own light groups (a light whose `entity_id` lists its members).
@@ -1985,6 +2283,70 @@ class ArControlPanel extends HTMLElement {
         <span class="gdl">${esc(st.label)}</span>
       </button>`;
     }).join("")}</div>`;
+  }
+
+  // Scenes & Automations, from the Auto & Scenes integration.
+  _autoscenes() {
+    const A = this._as || {};
+    if (!A.ok) return `<div class="empty">Install the Auto &amp; Scenes integration to see your scenes and automations here.</div>`;
+    if (this._asEd) return this._asEditor();
+    const refs = (this._asRefs = []);
+    const ref = (x) => refs.push(x) - 1;
+    const v = this._s.asv === "a" ? "a" : "s";
+    const seg = `<div class="tabs"><button class="tab ${v === "s" ? "on" : ""}" data-a="asv" data-v="s">Scenes</button><button class="tab ${v === "a" ? "on" : ""}" data-a="asv" data-v="a">Automations</button></div>`;
+    const err = A.err ? `<div class="note">${esc(A.err)}</div>` : "";
+    if (v === "s") {
+      if (!A.scenes) return seg + err + `<div class="empty">Loading scenes…</div>`;
+      const tiles = A.scenes.map((it) => {
+        const ent = this.asEnt("scene", it);
+        const icon = (it.config && it.config.icon) || (ent && this.st(ent) && this.st(ent).attributes.icon) || "mdi:palette";
+        const n = Object.keys((it.config && it.config.entities) || {}).length;
+        const i = ref(it);
+        return `<div class="astile ${this._asHit === it.id ? "hit" : ""}"><button class="astm" data-a="asrun" data-v="${i}" aria-label="Activate ${esc(it.name || "scene")}"><span class="asic">${this.asIcon(icon, 26)}</span><b>${esc(it.name || "Unnamed")}</b><small>${n} device${n === 1 ? "" : "s"}</small></button>${it.editable !== false ? `<button class="ased" data-a="asedit" data-v="${i}" aria-label="Change ${esc(it.name || "scene")}">${svg("pencil", 15)}</button>` : ""}</div>`;
+      }).join("");
+      return seg + err + `<div class="asgrid">${tiles}<button class="astile new" data-a="asnew"><span class="asic">${svg("plus", 26)}</span><b>New scene</b></button></div>`;
+    }
+    if (!A.autos) return seg + err + `<div class="empty">Loading automations…</div>`;
+    const cards = A.autos.map((it) => {
+      const ent = this.asEnt("automation", it);
+      const st = ent && this.st(ent);
+      const on = !!(st && st.state === "on");
+      let sub;
+      try { sub = asSummary(it.config || {}, (e) => (e ? this.name(e) : "a device")); } catch (x) { sub = "Advanced automation"; }
+      return `<div class="glass ascard"><button class="asm" data-a="asopen" aria-label="Change ${esc(it.name || "automation")} in Auto & Scenes"><span class="asav">${svg("robot", 20)}</span><span class="ast"><b>${esc(it.name || "Unnamed")}</b><small>${esc(sub)}</small><em>${esc(asRan(st && st.attributes.last_triggered))}</em></span></button><div class="asside"><button class="sw ${on ? "on" : ""}" role="switch" aria-checked="${on}" data-a="astog" data-e="${esc(ent || "")}" aria-label="${esc(it.name || "Automation")} ${on ? "off" : "on"}"><i></i></button><button class="asgo" data-a="asgo" data-e="${esc(ent || "")}" aria-label="Run ${esc(it.name || "automation")} now">${svg("play", 15, ' fill="currentColor" stroke-width="0"')}</button></div></div>`;
+    }).join("");
+    return seg + err + (cards ? `<div class="list">${cards}</div>` : `<div class="note">No automations yet.</div>`) + `<button class="asadd" data-a="asopen">${svg("plus", 16)} New automation</button><p class="asfoot">Tap an automation to change it in Auto &amp; Scenes.</p>`;
+  }
+  _asEditor() {
+    const d = this._asEd;
+    const rows = d.entities.map((r, i) => {
+      const dom = asDomain(r.entity_id);
+      const st = this.st(r.entity_id);
+      let opts = AS_SCENE_STATES[dom];
+      if (dom === "climate") opts = ((st && st.attributes.hvac_modes) || ["off", "heat", "cool"]).map((x) => [x, x.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase())]);
+      opts = opts || [["on", "On"], ["off", "Off"]];
+      const slide = (k, label, val, min, max, step, unit) => `<div class="asslab"><span>${label}</span><b data-asout>${val}${unit}</b></div><input type="range" min="${min}" max="${max}" step="${step}" value="${val}" data-a="asval" data-i="${i}" data-k="${k}" aria-label="${esc(this.name(r.entity_id))} ${label.toLowerCase()}">`;
+      let extra = "";
+      if (dom === "light" && r.state === "on") extra = slide("brightness_pct", "Brightness", r.brightness_pct != null ? r.brightness_pct : 100, 1, 100, 1, "%");
+      if (dom === "cover" && r.state === "open") extra = slide("position", "Position", r.position != null ? r.position : 100, 0, 100, 1, "%");
+      if (dom === "climate" && r.state !== "off") extra = slide("temperature", "Temperature", r.temperature != null ? r.temperature : 22, 10, 32, 0.5, "°");
+      const ic = { light: "bulb", cover: "shades", climate: "thermo", media_player: "speaker", fan: "fan", lock: "lock" }[dom] || "plug";
+      return `<div class="glass asblk"><div class="asdh">${svg(ic, 18)}<b>${esc(this.name(r.entity_id))}</b><button class="asdx" data-a="asrm" data-v="${i}" aria-label="Take ${esc(this.name(r.entity_id))} out">${svg("close", 14)}</button></div><div class="asseg">${opts.map(([val, lab]) => `<button class="${r.state === val ? "on" : ""}" data-a="asst" data-v="${i}|${esc(val)}">${esc(lab)}</button>`).join("")}</div>${extra}</div>`;
+    }).join("");
+    return `<div class="asbar"><button class="act" data-a="asback">${svg("back", 14)} Back</button><b>${d.id ? "Change scene" : "New scene"}</b><button class="act on" data-a="assave">Save</button></div>
+      <label class="aslbl" for="asname">Name</label><input id="asname" class="astin glass" data-a="asname" data-keep="1" placeholder="e.g. Movie night" value="${esc(d.name)}" autocomplete="off">
+      <div class="aslbl">Icon</div><div class="asicons">${AS_ICONS.map((ic) => `<button class="${d.icon === ic ? "on" : ""}" data-a="asicon" data-v="${esc(ic)}" aria-label="${esc(ic.replace("mdi:", "").replace(/-/g, " "))}">${this.asIcon(ic, 22)}</button>`).join("")}</div>
+      <div class="aslbl">Devices in this scene</div>
+      ${rows || `<div class="note">Add the lights and devices this scene should set. Tip: set them the way you like first, then tap “Use how they are now”.</div>`}
+      <button class="asadd" data-a="asadd">${svg("plus", 16)} Add a device</button>
+      ${d.entities.length ? `<div class="astwo"><button class="act" data-a="ascap">${svg("camera", 15)} Use how they are now</button><button class="act" data-a="astry">${svg("eye", 15)} Try it</button></div>` : ""}
+      ${d.id ? `<button class="asdel ${this._asConfirm ? "sure" : ""}" data-a="asdel">${svg("trash", 16)} ${this._asConfirm ? "Tap again to delete" : "Delete scene"}</button>` : ""}`;
+  }
+  _asPickSheet() {
+    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Add a device"><div class="box">
+      <h2>Add a device <button class="iconbtn" data-a="close" aria-label="Close">${svg("close", 18)}</button></h2>
+      <label class="ssearch glass">${svg("search", 18)}<input type="search" data-a="asq" data-keep="1" autocomplete="off" placeholder="Search" value="${esc(this._asQ || "")}" aria-label="Search devices"></label>
+      <div class="sdev" data-aslist style="margin-top:10px">${this._asPickHtml()}</div></div></div>`;
   }
 
   _utilities() {
