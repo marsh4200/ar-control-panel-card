@@ -676,7 +676,8 @@ function buildLayout(h, cfg) {
   if (!L.rooms.length && (L.cameras.length || L.security.length || L.utilities.length || L.garage.length || (Array.isArray(cfg.rtsp) && cfg.rtsp.length))) L.rooms.push(blankRoom("Home"));
   if (!L.rooms.length) return null;
   const rtsp = (Array.isArray(cfg.rtsp) ? cfg.rtsp : []).filter((r) => r && r.url).map((r, i) => ({ name: r.name || "Camera " + (i + 1), url: String(r.url) }));
-  return Object.assign(L, { name: cfg.title || "Home", wholeHouse: cfg.whole_house !== false, start: 0, rtsp, music: {} });
+  const at = Number(cfg.whole_house_at);
+  return Object.assign(L, { name: cfg.title || "Home", wholeHouse: cfg.whole_house !== false, wholeAt: Number.isFinite(at) && at >= 0 ? Math.floor(at) : null, start: 0, rtsp, music: {} });
 }
 
 class ArControlPanel extends HTMLElement {
@@ -862,7 +863,7 @@ class ArControlPanel extends HTMLElement {
     const L = buildLayout(h, cfg);
     this._layout = L ? [L] : [];
     // Start on Whole house the first time (it's added last, after the rooms).
-    if (this._s.room == null && L && L.rooms.length > 1 && L.wholeHouse) this._s.room = L.rooms.length;
+    if (this._s.room == null && L && L.rooms.length > 1 && L.wholeHouse) this._s.room = L.wholeAt == null ? L.rooms.length : Math.min(L.wholeAt, L.rooms.length);
     this._err = null;
     this._schedule(true);
   }
@@ -932,7 +933,8 @@ class ArControlPanel extends HTMLElement {
       const all = { name: "Whole house", icon: "home", whole: true };
       ROOM_KEYS.forEach((k) => (all[k] = uniq([].concat.apply([], rs.map((r) => r[k] || [])))));
       all.groups = [].concat.apply([], rs.map((r) => (r.groups || []).map((g) => Object.assign({}, g, { name: r.name + " · " + g.name }))));
-      rs.push(all);
+      const at = p.wholeAt == null ? rs.length : Math.min(p.wholeAt, rs.length);
+      rs.splice(at, 0, all);
     }
     return rs;
   }
@@ -2487,6 +2489,7 @@ const EDITOR_CSS = `
 .etabs button:focus-visible{outline:2px solid var(--primary-color);outline-offset:-2px}
 .chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
 .chips li{display:flex;align-items:center;height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--divider-color,#444);background:rgba(127,127,127,.08);color:var(--primary-text-color);font-size:14px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:pan-y}
+.chips li.whole{border-style:dashed}
 .chips li.on{border-color:var(--primary-color);background:rgba(3,169,244,.16);font-weight:600}
 .chips li.drag{position:relative;z-index:2;box-shadow:0 6px 18px rgba(0,0,0,.35);border-color:var(--primary-color)}
 .chips li:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}
@@ -2546,8 +2549,11 @@ class ArControlPanelCardEditor extends HTMLElement {
       const n = this._rooms().length;
       let to = null;
       if (e.key === "Enter" || e.key === " ") to = i;
-      else if (e.key === "ArrowRight") to = Math.min(n - 1, i + 1);
-      else if (e.key === "ArrowLeft") to = Math.max(0, i - 1);
+      else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        const lis = Array.from(this.shadowRoot.querySelectorAll("ul.chips li[data-room]"));
+        const k = lis.indexOf(r) + (e.key === "ArrowRight" ? 1 : -1);
+        if (lis[k]) to = Number(lis[k].getAttribute("data-room"));
+      }
       if (to == null) return;
       e.preventDefault();
       this._ri = to; this._shape = null; this._render();
@@ -2591,7 +2597,7 @@ class ArControlPanelCardEditor extends HTMLElement {
   _doors() { return Array.isArray(this._cfg.garage) ? this._cfg.garage.map((d) => (typeof d === "string" ? { entity: d } : d)).filter((d) => d && typeof d === "object") : []; }
   _streams() { return Array.isArray(this._cfg.rtsp) ? this._cfg.rtsp.filter((r) => r && typeof r === "object") : []; }
   _lgs(i) { const r = this._rooms()[i] || {}; return (Array.isArray(r.light_groups) ? r.light_groups : []).filter((g) => g && typeof g === "object"); }
-  _shapeOf() { return this._tab + ":" + this._ri + ":" + this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().map((r, i) => this._lgs(i).length).join(",") + "/" + this._rooms().length : 0) + ":" + this._streams().length + ":" + this._doors().length + ":" + this._amps().join(","); }
+  _shapeOf() { return this._tab + ":" + this._ri + ":" + this._wholeOn() + ":" + this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().map((r, i) => this._lgs(i).length).join(",") + "/" + this._rooms().length : 0) + ":" + this._streams().length + ":" + this._doors().length + ":" + this._amps().join(","); }
 
   // The lights that can be renamed: a room's lights and its groups' lights
   // ("nm:3"), or in automatic mode every light the card found ("nm:auto").
@@ -2648,9 +2654,11 @@ class ArControlPanelCardEditor extends HTMLElement {
       ? { key: x.key, label: x.g.name, note: (x.g.entity ? "HA group · " : "Group · ") + x.g.ids.length + (x.g.ids.length === 1 ? " light" : " lights"), group: true }
       : { key: x.key, label: this._nm(x.e) });
     if (okey === "rooms") {
-      return this._cfg.mode === "manual"
+      const list = this._cfg.mode === "manual"
         ? this._rooms().map((r, i) => ({ key: String(i), label: r.name || "Room " + (i + 1) }))
         : this._autoRooms().map((r) => ({ key: r.key, label: r.name }));
+      if (this._wholeOn()) list.splice(this._wholeAt(list.length), 0, { key: "_whole", label: "🏠 Whole house", note: "everything" });
+      return list;
     }
     if (okey.indexOf("lo:") === 0) {
       const i = Number(okey.slice(3));
@@ -2665,12 +2673,22 @@ class ArControlPanelCardEditor extends HTMLElement {
     }
     return [];
   }
+  _wholeOn() { return this._cfg.whole_house !== false; }
+  _wholeAt(n) { const a = Number(this._cfg.whole_house_at); return Number.isFinite(a) && a >= 0 ? Math.min(Math.floor(a), n) : n; }
   _setOrder(okey, keys) {
     const c = this._cfg;
+    if (okey === "rooms") {
+      // Whole house: remember how many rooms come before it (at the end = the default)
+      const w = keys.indexOf("_whole");
+      if (w >= 0) {
+        keys = keys.filter((k) => k !== "_whole");
+        if (w >= keys.length) delete c.whole_house_at; else c.whole_house_at = w;
+      }
+    }
     if (okey === "rooms" && c.mode === "manual") {
       const rooms = this._rooms();
       c.rooms = keys.map((k) => rooms[Number(k)]).filter(Boolean);
-      this._ri = Math.max(0, keys.indexOf(String(this._ri)));
+      this._ri = this._ri < 0 ? -1 : Math.max(0, keys.indexOf(String(this._ri)));
       this._shape = null; // the room boxes move too: redraw
       this._emit();
       this._render();
@@ -2922,6 +2940,7 @@ class ArControlPanelCardEditor extends HTMLElement {
     });
     this.shadowRoot.querySelectorAll("ul.chips li[data-room]").forEach((li) => {
       const i = Number(li.getAttribute("data-room"));
+      if (i < 0) return;
       li.textContent = (this._rooms()[i] || {}).name || "Room " + (i + 1);
     });
     const rn = this.shadowRoot.querySelector("[data-roomname]");
@@ -3162,7 +3181,7 @@ class ArControlPanelCardEditor extends HTMLElement {
     if (!this._hass) return;
     const manual = this._cfg.mode === "manual";
     const rooms = this._rooms();
-    if (this._ri >= rooms.length) this._ri = Math.max(0, rooms.length - 1);
+    if (this._ri >= rooms.length || (this._ri === -1 && !this._wholeOn())) this._ri = Math.max(0, rooms.length - 1);
     this._shape = this._shapeOf();
     const root = this.shadowRoot;
     root.innerHTML = `<style>${EDITOR_CSS}</style>`;
@@ -3193,7 +3212,18 @@ class ArControlPanelCardEditor extends HTMLElement {
       const chips = document.createElement("ul");
       chips.className = "chips";
       chips.setAttribute("aria-label", "Rooms");
+      const wli = document.createElement("li");
+      if (this._wholeOn()) {
+        wli.setAttribute("data-room", "-1");
+        wli.setAttribute("data-key", "_whole");
+        wli.setAttribute("role", "tab");
+        wli.setAttribute("tabindex", "0");
+        wli.setAttribute("aria-selected", String(this._ri === -1));
+        wli.className = "whole" + (this._ri === -1 ? " on" : "");
+        wli.textContent = "🏠 Whole house";
+      }
       rooms.forEach((r, i) => {
+        if (this._wholeOn() && i === this._wholeAt(rooms.length)) chips.appendChild(wli);
         const li = document.createElement("li");
         li.setAttribute("data-room", i);
         li.setAttribute("data-key", String(i));
@@ -3204,12 +3234,15 @@ class ArControlPanelCardEditor extends HTMLElement {
         li.textContent = r.name || "Room " + (i + 1);
         chips.appendChild(li);
       });
+      if (this._wholeOn() && this._wholeAt(rooms.length) >= rooms.length) chips.appendChild(wli);
       root.appendChild(chips);
       add(`<div class="chipbar"><button class="add mini" data-add="room">+ Room</button><span>Tap a room to set it up · drag a room sideways to change the order</span></div>`);
       root.querySelector('[data-add="room"]').addEventListener("click", () => this._room("add"));
       const i = this._ri;
       const r = rooms[i];
-      if (r) {
+      if (i === -1) {
+        add(`<div class="rbody"><div class="rhead2"><b>🏠 Whole house</b></div><p class="hint">Shows everything from all your rooms together. Drag its tab to put it first, in between, or last; that's where it sits in the card's room list too. To hide it, turn off “Show a ‘Whole house’ room” on the Whole house tab.</p></div>`);
+      } else if (r) {
         const box = document.createElement("div");
         box.className = "rbody";
         box.innerHTML = `<div class="rhead2"><b data-roomname></b>
