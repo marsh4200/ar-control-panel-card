@@ -134,6 +134,34 @@ With no settings, each Home Assistant **area** becomes a room and a **Whole hous
 
 Hidden and config/diagnostic entities are left out, and anything without an area goes in an **Other** room. In the editor you can still choose which areas to show, leave entities out, and mark switches that are really lights.
 
+## Spotify
+
+With a Spotify account in Home Assistant, the Music page gets a **Spotify** tab next to *Now playing* and *Library*. Spotify plays on the amp picked at the top of the page, through **Spotify Connect**.
+
+- **Playing to** shows the amp Spotify will play on. Tap it to see your Spotify Connect devices. Picking one moves what's playing there, from where it was.
+- **Search** finds songs, artists, playlists and albums. Tap one to open it, or tap ▶ to play it straight away.
+- **Playlists · Liked · Recent · Albums · Artists** come from your own Spotify account.
+- Open a playlist or album to **Play**, **Shuffle**, or tap a song to start there. The rest of the playlist carries on after it.
+- A small player bar shows what Spotify is playing, with pause and skip.
+
+**What you need:**
+
+1. Spotify Premium.
+2. One of these integrations:
+   - **SpotifyPlus** (HACS, recommended): everything, including search.
+   - **Spotify** (built into Home Assistant): everything except search.
+3. Amps that are Spotify Connect devices. Spotify must have seen each amp at least once, so play something to it from the Spotify app once.
+
+The card finds the Spotify account by itself and matches each amp to its Spotify Connect name. If an amp's name in Spotify is different, set it under **Spotify > Match amps to Spotify Connect** in the editor. The Spotify account itself is not listed as a speaker. In YAML:
+
+```yaml
+spotify:
+  entity: media_player.spotifyplus_andre   # optional, found by itself
+  devices:                                  # optional, when the names differ
+    media_player.lounge_amp: Lounge WiiM
+# spotify: false                            # hide the Spotify tab
+```
+
 ## Garage doors
 
 Add a garage door and a **Garage** page appears in the bottom bar, in every room and on Whole house. With no garage doors, there's no Garage page.

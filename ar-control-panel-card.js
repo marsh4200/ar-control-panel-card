@@ -59,6 +59,11 @@ const P = {
   link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
   garage: '<path d="M2 21V9l10-6 10 6v12"/><path d="M6 21v-9h12v9M6 15h12M6 18h12"/>',
   garageOpen: '<path d="M2 21V9l10-6 10 6v12"/><path d="M6 21v-9h12v9M6 14h12"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+  heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>',
+  shuffle: '<path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>',
+  back: '<path d="M15 18l-6-6 6-6"/>',
+  check: '<path d="M5 12l5 5L20 7"/>',
   speaker: '<rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="14" r="4"/><path d="M12 6h.01"/>',
 };
 const svg = (n, size, extra) =>
@@ -240,6 +245,78 @@ input[type=range]:disabled{opacity:.35}
 .dots i.f{background:var(--acc)}
 .empty{margin-top:40px;text-align:center;font-size:15px;font-weight:600;color:rgba(var(--ink-rgb),.66);line-height:1.5;padding:0 20px}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);max-width:calc(100% - 32px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transform:translateX(-50%);padding:10px 16px;border-radius:999px;background:rgba(14,15,19,.9);border:1px solid var(--line);font-size:14px;font-weight:700;z-index:9}
+/* ---- Spotify on the Music page ---- */
+.spdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#1ed760;margin-right:7px;vertical-align:1px;box-shadow:0 0 8px rgba(30,215,96,.7)}
+.sto{all:unset;box-sizing:border-box;cursor:pointer;margin-top:14px;width:100%;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:18px;-webkit-tap-highlight-color:transparent}
+.sto:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.sto>svg:first-child{color:var(--acc);flex:none}
+.sto span{flex:1;min-width:0;display:flex;flex-direction:column}
+.sto small{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(var(--ink-rgb),.55)}
+.sto b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sto em{flex:none;font-style:normal;font-size:11px;font-weight:700;color:#1ed760;background:rgba(30,215,96,.12);border:1px solid rgba(30,215,96,.3);padding:4px 8px;border-radius:999px}
+.ssearch{margin-top:12px;display:flex;align-items:center;gap:10px;height:48px;padding:0 6px 0 14px;border-radius:16px;color:rgba(var(--ink-rgb),.6)}
+.ssearch input{all:unset;flex:1;min-width:0;height:100%;font-size:16px;color:var(--ink)}
+.ssearch input::placeholder{color:rgba(var(--ink-rgb),.45)}
+.ssearch input::-webkit-search-cancel-button{display:none}
+.ssearch button{all:unset;cursor:pointer;width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:rgba(var(--ink-rgb),.6)}
+.sart{flex:none;width:44px;height:44px;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;color:rgba(var(--ink-rgb),.45);background:linear-gradient(160deg,#3a3229,#1d1b19)}
+.sart img{width:100%;height:100%;object-fit:cover}
+.sart.round{border-radius:50%}
+.sart.liked{background:linear-gradient(135deg,#5b3df5,#a8c8ff);color:#fff}
+.sgrid{margin-top:14px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.srow{margin-top:10px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.spl{position:relative;min-width:0}
+.spo{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:6px;width:100%;min-width:0;-webkit-tap-highlight-color:transparent}
+.spo:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:14px}
+.spl .sart{width:100%;height:auto;aspect-ratio:1;border-radius:14px;box-shadow:0 12px 24px -14px rgba(0,0,0,.8)}
+.spl .sart.round{border-radius:50%}
+.spl b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spl small{font-size:12px;font-weight:600;color:rgba(var(--ink-rgb),.55);margin-top:-4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow .spl b{font-size:12px}
+.splp{position:absolute;right:8px;top:8px;width:44px;height:44px;border-radius:50%;border:0;background:linear-gradient(145deg,var(--acc),#e89a3c);color:#2a1a06;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(0,0,0,.45)}
+.srow .splp{width:36px;height:36px;right:6px;top:6px}
+.sh{margin:18px 4px 0;font-size:16px;font-weight:700}
+.stop{margin-top:10px;padding:12px;display:flex;align-items:center;gap:14px;border-radius:20px}
+.stop .spo{flex-direction:row;align-items:center;gap:14px;flex:1}
+.stop .sart{width:84px;height:84px;border-radius:14px}
+.stop .sart.round{border-radius:50%}
+.st2{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.st2 b{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.st2 small{font-size:13px;color:rgba(var(--ink-rgb),.6);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.splay{flex:none;width:52px;height:52px;border-radius:50%;border:0;background:linear-gradient(145deg,var(--acc),#e89a3c);color:#2a1a06;display:flex;align-items:center;justify-content:center;box-shadow:0 0 22px rgba(var(--acc-rgb),.4)}
+.strk{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:flex;align-items:center;gap:12px;padding:8px 12px 8px 8px;-webkit-tap-highlight-color:transparent}
+.strk.glass{border-radius:16px}
+.strk:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.strk .nm{flex:1;display:flex;flex-direction:column;min-width:0}
+.strk .nm b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.strk .nm small{font-size:12px;font-weight:600;color:rgba(var(--ink-rgb),.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.strk.now{border-color:rgba(var(--acc-rgb),.45)}
+.strk.now .nm b{color:var(--acc)}
+.tn{flex:none;width:22px;text-align:center;font-size:13px;font-weight:700;color:rgba(var(--ink-rgb),.5)}
+.eq{display:inline-flex;gap:2px;align-items:flex-end;height:14px}.eq i{width:3px;background:var(--acc);border-radius:2px;animation:eq 1s ease-in-out infinite}.eq i:nth-child(2){animation-delay:-.3s}.eq i:nth-child(3){animation-delay:-.6s}
+@keyframes eq{0%,100%{height:30%}50%{height:100%}}
+.shero{margin-top:16px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.shero .sart{width:min(190px,52vw);height:auto;aspect-ratio:1;border-radius:18px;box-shadow:0 20px 40px -20px rgba(0,0,0,.8)}
+.shero .sart.round{border-radius:50%}
+.sht{text-align:center;display:flex;flex-direction:column;gap:4px}
+.sht b{font-size:22px}.sht small{font-size:13px;font-weight:600;color:rgba(var(--ink-rgb),.6)}
+.sbtns{margin:16px 0 4px;display:flex;align-items:center;gap:14px}
+.sbig{width:60px;height:60px;flex:none}
+.sbl{flex:1;min-width:0;display:flex;flex-direction:column}
+.sbl b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sbl small{font-size:12px;color:rgba(var(--ink-rgb),.55);font-weight:600}
+.sround{width:48px;height:48px;flex:none;color:rgba(var(--ink-rgb),.85)}
+.mini{position:sticky;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);margin-top:16px;display:flex;align-items:center;gap:12px;padding:8px 10px 8px 8px;border-radius:18px;background:rgba(30,28,25,.88);z-index:3}
+.mini .sart{width:44px;height:44px;border-radius:10px}
+.mt{flex:1;display:flex;flex-direction:column;min-width:0}
+.mt b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mt small{font-size:12px;font-weight:600;color:rgba(var(--ink-rgb),.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mb{flex:none;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.08);color:var(--ink);display:flex;align-items:center;justify-content:center}
+.sdev{display:flex;flex-direction:column;gap:8px;margin-top:6px;max-height:55vh;overflow-y:auto}
+.sdev button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.sdev button span{flex:1;min-width:0;display:flex;flex-direction:column}
+.sdev b{font-size:15px}.sdev small{font-size:12px;font-weight:600;color:rgba(var(--ink-rgb),.55)}
+.sdev button.on{border-color:rgba(var(--acc-rgb),.55);background:rgba(var(--acc-rgb),.12)}
+.sdev button.on svg{color:var(--acc)}
+.hint2{margin:14px 2px 2px;font-size:13px;color:rgba(var(--ink-rgb),.6);font-weight:600}
+@media (prefers-reduced-motion:reduce){.eq i{animation:none}}
 /* ---- garage doors: the door rolls up to show the garage inside ---- */
 .gds{margin-top:16px;display:flex;flex-direction:column;gap:14px}
 .gd{all:unset;box-sizing:border-box;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:100%;height:200px;border-radius:22px;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;color:#fff;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,.9);
@@ -410,7 +487,7 @@ function autoLayout(h, cfg) {
         break;
       case "fan": case "water_heater": case "vacuum": case "humidifier": house.utilities.push(id); break;
       case "climate": roomFor(id).climate.push(id); break;
-      case "media_player": roomFor(id).music.push(id); break;
+      case "media_player": if (!r || (r.platform !== "spotify" && r.platform !== "spotifyplus")) roomFor(id).music.push(id); break;
       // garage-door covers get the Garage page (unless you set them up yourself)
       case "cover": if (dc === "garage") { if (!gdTaken.has(id)) house.garage.push({ entity: id, sensor: "", name: "", alert: 10 }); } else roomFor(id).shades.push(id); break;
       case "scene": roomFor(id).scenes.push(id); break;
@@ -486,6 +563,11 @@ class ArControlPanel extends HTMLElement {
     this.shadowRoot.addEventListener("click", (e) => this._click(e));
     this.shadowRoot.addEventListener("input", (e) => this._input(e));
     this.shadowRoot.addEventListener("change", (e) => this._change(e));
+    this.shadowRoot.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && e.target.getAttribute && e.target.getAttribute("data-a") === "spq") { clearTimeout(this._spT); this.spSearch(e.target.value); e.target.blur(); }
+    });
+    // after typing in Spotify search, catch up with anything skipped meanwhile
+    this.shadowRoot.addEventListener("focusout", (e) => { if (e.target.getAttribute && e.target.getAttribute("data-a") === "spq") setTimeout(() => this._schedule(true), 0); });
     this.shadowRoot.addEventListener("pointerdown", (e) => { if (e.target.type === "range") this._busy++; });
     this.shadowRoot.addEventListener("pointerup", () => setTimeout(() => (this._busy = Math.max(0, this._busy - 1)), 300));
     // Hold a garage door for its details (like Home Assistant's hold action).
@@ -619,7 +701,8 @@ class ArControlPanel extends HTMLElement {
     const p = this.panelCfg();
     const r = this.room();
     if (!p || !r) return [];
-    const own = (r.music || []).filter((e) => this.has(e));
+    const acct = this.spAcct();
+    const own = (r.music || []).filter((e) => this.has(e) && e !== acct);
     if (own.length) return own;
     const m = p.music || {};
     if (!m.ma && !m.spotify) return [];
@@ -713,7 +796,7 @@ class ArControlPanel extends HTMLElement {
   }
   cats() {
     const p = this.panelCfg();
-    return CATS.filter((c) => this.ents(c.key).length || (c.key === "cameras" && p && p.rtsp && p.rtsp.length));
+    return CATS.filter((c) => this.ents(c.key).length || (c.key === "cameras" && p && p.rtsp && p.rtsp.length) || (c.key === "music" && this.spAcct()));
   }
   weather() {
     const h = this._hass;
@@ -772,6 +855,228 @@ class ArControlPanel extends HTMLElement {
     lib.loading = false;
     this._schedule(true);
   }
+  // --- Spotify -------------------------------------------------------------------
+  // The Spotify account (a media_player from the SpotifyPlus or the official
+  // Spotify integration). Plays go to an amp through Spotify Connect.
+  spAcct() {
+    const h = this._hass;
+    if (!h || !h.states) return null;
+    const c = this._config && this._config.spotify;
+    if (c === false || (c && c.enabled === false)) return null;
+    const want = typeof c === "string" ? c : c && c.entity;
+    if (want) return this.has(want) ? want : null;
+    const reg = h.entities || {};
+    const ids = Object.keys(h.states).filter((e) => e.indexOf("media_player.") === 0);
+    return ids.find((e) => (reg[e] || {}).platform === "spotifyplus") || ids.find((e) => (reg[e] || {}).platform === "spotify") || ids.find((e) => /^media_player\.spotify/.test(e)) || null;
+  }
+  // SpotifyPlus: search, playlists, liked songs... through its own actions.
+  spPlus(acct) {
+    const h = this._hass;
+    if (!h.services || !h.services.spotifyplus) return false;
+    const r = (h.entities || {})[acct];
+    return r ? r.platform === "spotifyplus" : /spotifyplus/.test(acct);
+  }
+  spCanSearch(acct) {
+    const s = this.st(acct);
+    return this.spPlus(acct) || !!(s && (s.attributes.supported_features || 0) & 4194304);
+  }
+  // The Spotify Connect name of an amp: set in the editor, picked on the card,
+  // or matched by name from Spotify's device list.
+  spDevice(amp) {
+    const acct = this.spAcct();
+    const s = this.st(acct);
+    const list = (s && s.attributes.source_list) || [];
+    const key = amp || "_none";
+    const picked = this._s.spDev && this._s.spDev[key];
+    if (picked) return picked;
+    const map = (this._config && this._config.spotify && this._config.spotify.devices) || {};
+    if (amp && typeof map[amp] === "string" && map[amp].trim()) return map[amp].trim();
+    if (!amp) return (s && s.attributes.source) || list[0] || "";
+    const norm = (x) => String(x).toLowerCase().replace(/[^a-z0-9]/g, "");
+    const names = uniq([this.name(amp), friendly(this._hass, amp), amp.split(".")[1]]).map(norm).filter(Boolean);
+    const hit = list.find((n) => names.indexOf(norm(n)) >= 0) || list.find((n) => names.some((m) => norm(n) && (m.indexOf(norm(n)) >= 0 || norm(n).indexOf(m) >= 0)));
+    return hit || this.name(amp);
+  }
+  _spState(acct) {
+    if (!this._sp || this._sp.acct !== acct) this._sp = { acct, view: null, q: "", filter: "all", lists: {}, res: null, detail: null, loading: null, err: null };
+    return this._sp;
+  }
+  async spCall(service, data) {
+    const r = await this._hass.callWS({ type: "call_service", domain: "spotifyplus", service, service_data: Object.assign({ entity_id: this._sp.acct }, data), return_response: true });
+    return r && r.response ? r.response.result : null;
+  }
+  // One Spotify Web API object (from SpotifyPlus) as a row/tile.
+  spItem(x) {
+    if (!x || typeof x !== "object") return null;
+    let o = x.track && typeof x.track === "object" ? x.track : x;
+    if (!o.uri && x.album && typeof x.album === "object") o = x.album; // a saved album
+    if (!o.uri) return null;
+    const imgs = (a) => (a && (a.image_url || (a.images && a.images[0] && a.images[0].url))) || "";
+    const artists = (o.artists || []).map((a) => a.name).filter(Boolean).join(", ");
+    const type = o.type || String(o.uri).split(":")[1];
+    const sub = type === "track" ? artists : type === "album" ? artists || "Album" : type === "playlist" ? (o.tracks && o.tracks.total != null ? o.tracks.total + " songs" : (o.owner && o.owner.display_name) || "Playlist") : type === "artist" ? "Artist" : "";
+    return { uri: o.uri, id: o.id || String(o.uri).split(":").pop(), type, title: o.name || "", sub, img: imgs(o) || imgs(o.album), dur: o.duration_ms };
+  }
+  spItems(r) {
+    const a = Array.isArray(r) ? r : (r && r.items) || [];
+    return a.map((x) => this.spItem(x)).filter(Boolean);
+  }
+  // A browse_media node (official Spotify integration, or HA search results).
+  spNode(c) {
+    const t = String(c.media_content_type || "").replace("spotify://", "");
+    const type = t === "current_user_saved_tracks" ? "liked" : c.media_class === "track" ? "track" : c.media_class === "playlist" ? "playlist" : c.media_class === "album" ? "album" : c.media_class === "artist" ? "artist" : t;
+    return { uri: c.media_content_id, id: String(c.media_content_id || "").split(":").pop(), type, title: c.title || "", sub: type === "track" ? "" : type === "artist" ? "Artist" : type === "album" ? "Album" : type === "playlist" ? "Playlist" : "", img: c.thumbnail || "", raw: c };
+  }
+  async spLoad(view) {
+    const sp = this._sp;
+    sp.view = view;
+    sp.err = null;
+    sp.detail = null;
+    if (sp.lists[view]) { this._schedule(true); return; }
+    sp.loading = view;
+    this._schedule(true);
+    try {
+      let items;
+      if (this.spPlus(sp.acct)) {
+        const svc = {
+          playlists: ["get_playlist_favorites", { limit_total: 200 }],
+          liked: ["get_track_favorites", { limit_total: 200 }],
+          recent: ["get_player_recent_tracks", { limit_total: 50 }],
+          albums: ["get_album_favorites", { limit_total: 100 }],
+          artists: ["get_artists_followed", { limit_total: 100 }],
+        }[view];
+        items = this.spItems(await this.spCall(svc[0], svc[1]));
+      } else {
+        const id = { playlists: "current_user_playlists", liked: "current_user_saved_tracks", recent: "current_user_recently_played", albums: "current_user_saved_albums", artists: "current_user_followed_artists" }[view];
+        const r = await this._hass.callWS({ type: "media_player/browse_media", entity_id: sp.acct, media_content_type: "spotify://" + id, media_content_id: id });
+        items = ((r && r.children) || []).map((c) => this.spNode(c));
+      }
+      if (view === "recent") { const seen = {}; items = items.filter((x) => !seen[x.uri] && (seen[x.uri] = 1)); }
+      sp.lists[view] = items;
+    } catch (e) {
+      sp.err = (e && e.message) || "Couldn't reach Spotify.";
+    }
+    if (sp.loading === view) sp.loading = null;
+    this._schedule(true);
+  }
+  async spSearch(q) {
+    const sp = this._sp;
+    sp.q = q;
+    sp.detail = null;
+    if (!q.trim()) { sp.res = null; sp.view = sp.lastView || "playlists"; this._schedule(true); return; }
+    if (sp.view !== "search") sp.lastView = sp.view;
+    sp.view = "search";
+    sp.err = null;
+    if (!this.spCanSearch(sp.acct)) {
+      sp.err = "Search needs the SpotifyPlus integration (from HACS). Your playlists, liked songs and recent plays work without it.";
+      this._schedule(true);
+      return;
+    }
+    const tok = (this._spTok = (this._spTok || 0) + 1);
+    sp.loading = "search";
+    this._schedule(true);
+    try {
+      let res;
+      if (this.spPlus(sp.acct)) {
+        const r = (await this.spCall("search_all", { criteria: q, criteria_type: "track,artist,album,playlist", limit_total: 10 })) || {};
+        res = { tracks: this.spItems(r.tracks), artists: this.spItems(r.artists), albums: this.spItems(r.albums), playlists: this.spItems(r.playlists) };
+      } else {
+        const r = await this._hass.callWS({ type: "media_player/search_media", entity_id: sp.acct, search_query: q });
+        const all = ((r && r.result) || []).map((c) => this.spNode(c));
+        res = { tracks: all.filter((x) => x.type === "track"), artists: all.filter((x) => x.type === "artist"), albums: all.filter((x) => x.type === "album"), playlists: all.filter((x) => x.type === "playlist") };
+      }
+      if (tok !== this._spTok) return;
+      sp.res = res;
+    } catch (e) {
+      if (tok !== this._spTok) return;
+      sp.err = (e && e.message) || "Search didn't work.";
+      sp.res = null;
+    }
+    sp.loading = null;
+    this._schedule(true);
+  }
+  // Open a playlist / album / artist / Liked Songs and list its songs.
+  async spOpen(item) {
+    const sp = this._sp;
+    const back = sp.view === "detail" && sp.detail ? sp.detail.back : sp.view;
+    sp.detail = { item, tracks: null, back };
+    sp.view = "detail";
+    sp.err = null;
+    this._schedule(true);
+    try {
+      let tracks;
+      if (item.type === "liked") {
+        if (!sp.lists.liked) await this.spLoad("liked");
+        sp.view = "detail";
+        sp.detail = { item, tracks: null, back };
+        tracks = sp.lists.liked || [];
+      } else if (this.spPlus(sp.acct)) {
+        if (item.type === "playlist") tracks = this.spItems(await this.spCall("get_playlist_items", { playlist_id: item.id, limit_total: 200 }));
+        else if (item.type === "album") tracks = this.spItems(await this.spCall("get_album_tracks", { album_id: item.id, limit_total: 100 })).map((t) => Object.assign(t, { img: t.img || item.img }));
+        else if (item.type === "artist") tracks = this.spItems(await this.spCall("get_artist_top_tracks", { artist_id: item.id }));
+        else tracks = [];
+      } else {
+        const raw = item.raw || {};
+        const r = await this._hass.callWS({ type: "media_player/browse_media", entity_id: sp.acct, media_content_type: raw.media_content_type || "spotify://" + item.type, media_content_id: raw.media_content_id || item.uri });
+        tracks = ((r && r.children) || []).map((c) => this.spNode(c));
+      }
+      if (sp.detail && sp.detail.item === item) sp.detail.tracks = tracks;
+    } catch (e) {
+      if (sp.detail && sp.detail.item === item) { sp.detail.tracks = []; sp.err = (e && e.message) || "Couldn't open that."; }
+    }
+    this._schedule(true);
+  }
+  // Play on the amp: a whole playlist/album/artist/Liked Songs, or a song
+  // (inside an opened playlist or album, it carries on with the rest).
+  async spPlay(item, opt) {
+    const o = opt || {};
+    const sp = this._sp;
+    const acct = sp.acct;
+    const dev = this.spDevice(o.amp);
+    const h = this._hass;
+    try {
+      if (this.spPlus(acct)) {
+        const base = { entity_id: acct };
+        if (dev) base.device_id = dev;
+        if (item.type === "liked") await h.callService("spotifyplus", "player_media_play_track_favorites", Object.assign(base, { shuffle: !!o.shuffle }));
+        else if (item.type === "track" && o.context && o.context.type !== "liked" && o.context.type !== "artist")
+          await h.callService("spotifyplus", "player_media_play_context", Object.assign(base, { context_uri: o.context.uri, offset_position: o.index || 0 }));
+        else if (item.type === "track") {
+          const list = (o.list || [item]).slice(o.index || 0, (o.index || 0) + 50).filter((t) => t.type === "track");
+          await h.callService("spotifyplus", "player_media_play_tracks", Object.assign(base, { uris: (list.length ? list : [item]).map((t) => t.uri).join(",") }));
+        } else await h.callService("spotifyplus", "player_media_play_context", Object.assign(base, { context_uri: item.uri, shuffle: !!o.shuffle }));
+      } else {
+        const s = this.st(acct);
+        const list = (s && s.attributes.source_list) || [];
+        if (dev && list.indexOf(dev) >= 0 && s.attributes.source !== dev) await h.callService("media_player", "select_source", { entity_id: acct, source: dev });
+        if (o.shuffle != null && item.type !== "track") await h.callService("media_player", "shuffle_set", { entity_id: acct, shuffle: !!o.shuffle });
+        const raw = item.raw || {};
+        const type = item.type === "liked" ? "current_user_saved_tracks" : String(raw.media_content_type || item.type).replace("spotify://", "");
+        await h.callService("media_player", "play_media", { entity_id: acct, media_content_id: item.type === "liked" ? "current_user_saved_tracks" : item.uri, media_content_type: type });
+      }
+      this._say("Playing " + item.title + (dev ? " on " + dev : ""));
+    } catch (e) {
+      this._say((e && e.message) || "Spotify didn't start");
+    }
+  }
+  // Move what's playing to another amp (and play there from now on).
+  async spMove(amp, dev) {
+    const acct = this._spState(this.spAcct()).acct;
+    const spDev = Object.assign({}, this._s.spDev || {});
+    spDev[amp || "_none"] = dev;
+    this._sheet = null;
+    this._set({ spDev });
+    const s = this.st(acct);
+    if (!s || (s.state !== "playing" && s.state !== "paused")) { this._say("Spotify will play on " + dev); return; }
+    try {
+      if (this.spPlus(acct)) await this._hass.callService("spotifyplus", "player_transfer_playback", { entity_id: acct, device_id: dev, play: s.state === "playing" });
+      else await this._hass.callService("media_player", "select_source", { entity_id: acct, source: dev });
+      this._say("Moved to " + dev);
+    } catch (e) {
+      this._say((e && e.message) || "Couldn't move to " + dev);
+    }
+  }
+
   _refreshCams() {
     const imgs = this.shadowRoot.querySelectorAll("img[data-cam]");
     imgs.forEach((im) => {
@@ -907,6 +1212,15 @@ class ArControlPanel extends HTMLElement {
       case "fan": this.call("climate", "set_fan_mode", { entity_id: e, fan_mode: v }); break;
       case "mus": this._lib = null; this._set({ mus: Number(v) }); break;
       case "mview": this._set({ mview: v }); if (v === "lib" && !this._lib) this._browse(e, null); break;
+      case "spv": this._sp.res = null; this._sp.q = ""; this.spLoad(v); break;
+      case "spf": this._sp.filter = v; this._schedule(true); break;
+      case "spclear": this._sp.q = ""; this.spSearch(""); break;
+      case "spo": { const it = (this._spRefs || [])[Number(v)]; if (it) this.spOpen(it); break; }
+      case "spp": { const r = (this._spRefs || [])[Number(v)]; if (r) this.spPlay(r.item || r, Object.assign({ amp: this._spAmp }, r.opt || {})); break; }
+      case "spback": { const d = this._sp.detail; this._sp.detail = null; this._sp.view = (d && d.back) || "playlists"; this._schedule(true); break; }
+      case "spdev": this._sheet = "spdev"; this._schedule(true); break;
+      case "spsel": this.spMove(this._spAmp, v); break;
+      case "spm": this.call("media_player", v, { entity_id: e }); break;
       case "lib": {
         const it = this._lib && this._lib.items[Number(v)];
         if (!it) break;
@@ -975,6 +1289,12 @@ class ArControlPanel extends HTMLElement {
   }
   _input(ev) {
     const t = ev.target;
+    if (t.getAttribute && t.getAttribute("data-a") === "spq" && this._sp) {
+      this._sp.q = t.value;
+      clearTimeout(this._spT);
+      this._spT = setTimeout(() => this.spSearch(t.value), 500);
+      return;
+    }
     if (t.type === "range") t.style.setProperty("--p", ((t.value - t.min) / (t.max - t.min)) * 100 + "%");
   }
   _change(ev) {
@@ -1012,9 +1332,20 @@ class ArControlPanel extends HTMLElement {
       if (s.tab !== "home" && !cats.some((c) => c.key === s.tab)) s.tab = "home";
       body = this._top() + (this["_" + s.tab] ? this["_" + s.tab]() : this._home()) + this._dock(cats);
     }
-    const sheet = this._sheet === "rooms" ? this._roomsSheet() : this._pin ? this._pinSheet() : "";
+    const sheet = this._sheet === "rooms" ? this._roomsSheet() : this._sheet === "spdev" ? this._spDevSheet() : this._pin ? this._pinSheet() : "";
     const toast = this._toast ? `<div class="toast" role="status">${esc(this._toast)}</div>` : "";
     const html = `<div class="root"><div class="wrap">${body}</div></div>${sheet}${toast}`;
+    // Typing in Spotify search: only refresh the results under the box, so
+    // the keyboard stays up.
+    const act = this.shadowRoot.activeElement;
+    if (act && act.getAttribute && act.getAttribute("data-a") === "spq" && this._spBody != null) {
+      const box = this.shadowRoot.querySelector("[data-spbody]");
+      if (box) {
+        if (box._h !== this._spBody) { box.innerHTML = this._spBody; box._h = this._spBody; }
+        this._lastHtml = null;
+        return;
+      }
+    }
     // Nothing on screen changed (e.g. a state change elsewhere in the house):
     // leave the page alone, so a live camera keeps streaming untouched.
     if (html === this._lastHtml && this.shadowRoot.querySelector(".root")) { this._placeDock(); return; }
@@ -1250,6 +1581,8 @@ class ArControlPanel extends HTMLElement {
 
   _music() {
     const es = this.ents("music");
+    const acct = this.spAcct();
+    if (!es.length) return acct ? this._spotify(null) : "";
     // until a speaker is picked: the one that's playing
     const playingIdx = Math.max(0, es.findIndex((x) => this.st(x).state === "playing"));
     const i = clamp(this._s.mus == null ? playingIdx : this._s.mus, 0, es.length - 1);
@@ -1261,7 +1594,9 @@ class ArControlPanel extends HTMLElement {
     const off = s.state === "off" || s.state === "unavailable";
     const art = a.entity_picture ? `<img src="${esc(a.entity_picture)}" alt="">` : svg("music", 64, ' stroke-width="1.4"');
     const vol = a.volume_level != null ? Math.round(a.volume_level * 100) : null;
-    const seg = `<div class="tabs"><button class="tab ${this._s.mview !== "lib" ? "on" : ""}" data-a="mview" data-v="now">Now playing</button><button class="tab ${this._s.mview === "lib" ? "on" : ""}" data-a="mview" data-v="lib" data-e="${esc(e)}">Library</button></div>`;
+    const mv = this._s.mview === "sp" && !acct ? "now" : this._s.mview;
+    const seg = `<div class="tabs"><button class="tab ${mv !== "lib" && mv !== "sp" ? "on" : ""}" data-a="mview" data-v="now">Now playing</button><button class="tab ${mv === "lib" ? "on" : ""}" data-a="mview" data-v="lib" data-e="${esc(e)}">Library</button>${acct ? `<button class="tab ${mv === "sp" ? "on" : ""}" data-a="mview" data-v="sp"><i class="spdot"></i>Spotify</button>` : ""}</div>`;
+    if (mv === "sp") return tabs + seg + this._spotify(e);
     if (this._s.mview === "lib") {
       if (!this._lib || this._lib.player !== e) { this._lib = null; setTimeout(() => this._browse(e, null), 0); }
       return tabs + seg + this._library();
@@ -1277,6 +1612,94 @@ class ArControlPanel extends HTMLElement {
       </div>
       ${vol != null ? `<div class="vol">${svg("music", 18)}<input type="range" min="0" max="100" value="${vol}" data-a="vol" data-e="${esc(e)}" aria-label="Volume"><button class="iconbtn" data-a="media" data-e="${esc(e)}" data-v="power" aria-label="Power">${svg("power", 18)}</button></div>` : ""}
     </div>`;
+  }
+
+  // Spotify on the Music page: plays on the amp picked above (Spotify Connect).
+  _spotify(amp) {
+    const acct = this.spAcct();
+    const sp = this._spState(acct);
+    this._spAmp = amp;
+    const refs = (this._spRefs = []);
+    const ref = (x) => refs.push(x) - 1;
+    if (!sp.view) { sp.view = "playlists"; setTimeout(() => this.spLoad("playlists"), 0); }
+    const dev = this.spDevice(amp);
+    const as = this.st(acct);
+    const known = ((as && as.attributes.source_list) || []).indexOf(dev) >= 0;
+    const target = `<button class="sto glass" data-a="spdev">${svg("speaker", 18)}<span><small>Playing to</small><b>${esc(dev || "Pick an amp")}</b></span><em>Spotify Connect</em>${svg("chev", 14)}</button>`;
+    const search = `<label class="ssearch glass">${svg("search", 18)}<input type="search" enterkeyhint="search" autocomplete="off" data-a="spq" value="${esc(sp.q)}" placeholder="${this.spCanSearch(acct) ? "Search songs, artists, playlists" : "Search needs SpotifyPlus"}" aria-label="Search Spotify">${sp.q ? `<button data-a="spclear" aria-label="Clear search">${svg("close", 16)}</button>` : ""}</label>`;
+
+    const art = (it, big) => it.type === "liked"
+      ? `<span class="sart liked">${svg("heart", big ? 40 : 18, ' fill="currentColor" stroke-width="0"')}</span>`
+      : `<span class="sart${it.type === "artist" ? " round" : ""}">${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy">` : svg("music", big ? 34 : 18, ' stroke-width="1.6"')}</span>`;
+    const tile = (it) => `<div class="spl"><button class="spo" data-a="spo" data-v="${ref(it)}" aria-label="Open ${esc(it.title)}">${art(it, true)}<b>${esc(it.title)}</b>${it.sub ? `<small>${esc(it.sub)}</small>` : ""}</button><button class="splp" data-a="spp" data-v="${ref({ item: it })}" aria-label="Play ${esc(it.title)} on ${esc(dev)}">${svg("play", 16, ' fill="currentColor" stroke-width="0"')}</button></div>`;
+    const mmss = (ms) => (ms ? Math.floor(ms / 60000) + ":" + pad(Math.floor((ms % 60000) / 1000)) : "");
+    const nowUri = as && as.attributes.media_content_id;
+    const row = (t, i, list, ctx) => `<button class="glass item strk ${nowUri && nowUri === t.uri ? "now" : ""}" data-a="spp" data-v="${ref({ item: t, opt: { list, index: i, context: ctx } })}" aria-label="Play ${esc(t.title)}">${ctx && ctx.type !== "artist" && ctx.type !== "liked" ? `<span class="tn">${nowUri && nowUri === t.uri ? '<i class="eq"><i></i><i></i><i></i></i>' : i + 1}</span>` : ""}${art(t)}<span class="nm"><b>${esc(t.title)}</b>${t.sub ? `<small>${esc(t.sub)}</small>` : ""}</span><span class="val">${mmss(t.dur)}</span></button>`;
+    const loading = (w) => `<div class="empty" style="margin-top:28px">${esc(w)}</div>`;
+
+    let body = "";
+    if (sp.view === "detail" && sp.detail) {
+      const d = sp.detail;
+      const it = d.item;
+      const tracks = d.tracks;
+      body = `<button class="act" data-a="spback" style="margin-top:14px">${svg("back", 14)} Back</button>
+        <div class="shero">${art(it, true)}<div class="sht"><b>${esc(it.title)}</b><small>${esc(tracks ? tracks.length + (tracks.length === 1 ? " song" : " songs") : it.sub || "")}</small></div></div>
+        <div class="sbtns"><button class="big sbig" data-a="spp" data-v="${ref({ item: it, opt: { shuffle: false } })}" aria-label="Play ${esc(it.title)}">${svg("play", 26, ' fill="currentColor" stroke-width="0"')}</button><span class="sbl"><b>Play on ${esc(dev)}</b><small>or tap a song to start there</small></span><button class="round sround" data-a="spp" data-v="${ref({ item: it, opt: { shuffle: true } })}" aria-label="Shuffle ${esc(it.title)}">${svg("shuffle", 20)}</button></div>
+        ${sp.err ? `<div class="note">${esc(sp.err)}</div>` : ""}
+        ${tracks == null ? loading("Loading songs…") : `<div class="list">${tracks.map((t, i) => row(t, i, tracks, it)).join("")}</div>`}`;
+    } else if (sp.view === "search") {
+      const r = sp.res;
+      const f = sp.filter || "all";
+      const chips = `<div class="tabs">${[["all", "All"], ["tracks", "Songs"], ["artists", "Artists"], ["playlists", "Playlists"], ["albums", "Albums"]].map(([k, t]) => `<button class="tab ${f === k ? "on" : ""}" data-a="spf" data-v="${k}">${t}</button>`).join("")}</div>`;
+      if (sp.err) body = chips + `<div class="note">${esc(sp.err)}</div>`;
+      else if (!r) body = chips + loading("Searching…");
+      else {
+        const n = r.tracks.length + r.artists.length + r.albums.length + r.playlists.length;
+        const q = sp.q.trim().toLowerCase();
+        const top = [].concat(r.artists, r.playlists, r.albums).find((x) => x.title.toLowerCase() === q) || r.artists[0] || r.playlists[0] || r.tracks[0];
+        const sec = (k, title, max) => {
+          const L = r[k];
+          if (!L.length) return "";
+          const list = f === "all" ? L.slice(0, max) : L;
+          return `<div class="sh">${title}</div>${k === "tracks" ? `<div class="list">${list.map((t, i) => row(t, i, L, null)).join("")}</div>` : `<div class="${f === "all" ? "srow" : "sgrid"}">${list.map(tile).join("")}</div>`}`;
+        };
+        body = chips + (!n ? `<div class="note">Nothing found for “${esc(sp.q)}”.</div>`
+          : f === "all"
+            ? (top ? `<div class="sh">Top result</div><div class="glass stop"><button class="spo" data-a="${top.type === "track" ? "spp" : "spo"}" data-v="${top.type === "track" ? ref({ item: top }) : ref(top)}">${art(top, true)}<span class="st2"><b>${esc(top.title)}</b><small>${esc(top.type === "track" ? "Song · " + top.sub : top.type === "artist" ? "Artist" : top.type === "album" ? "Album · " + top.sub : "Playlist" + (top.sub ? " · " + top.sub : ""))}</small></span></button><button class="splay" data-a="spp" data-v="${ref({ item: top })}" aria-label="Play ${esc(top.title)}">${svg("play", 22, ' fill="currentColor" stroke-width="0"')}</button></div>` : "")
+              + sec("tracks", "Songs", 4) + sec("artists", "Artists", 3) + sec("playlists", "Playlists", 3) + sec("albums", "Albums", 3)
+            : sec(f, { tracks: "Songs", artists: "Artists", playlists: "Playlists", albums: "Albums" }[f], 999));
+      }
+    } else {
+      const v = sp.view;
+      const chips = `<div class="tabs">${[["playlists", "Playlists"], ["liked", svg("heart", 13, ' style="vertical-align:-2px"') + " Liked"], ["recent", "Recent"], ["albums", "Albums"], ["artists", "Artists"]].map(([k, t]) => `<button class="tab ${v === k ? "on" : ""}" data-a="spv" data-v="${k}">${t}</button>`).join("")}</div>`;
+      const L = sp.lists[v];
+      if (sp.err && !L) body = chips + `<div class="note">${esc(sp.err)}</div>`;
+      else if (!L) body = chips + loading("Loading your Spotify…");
+      else if (v === "liked" || v === "recent") body = chips + (L.length ? `<div class="list">${L.map((t, i) => row(t, i, L, v === "liked" ? { type: "liked", uri: "", title: "Liked Songs" } : null)).join("")}</div>` : `<div class="note">Nothing here yet.</div>`);
+      else {
+        const items = v === "playlists" ? [{ type: "liked", uri: "liked", title: "Liked Songs", sub: sp.lists.liked ? sp.lists.liked.length + " songs" : "Your saved songs" }].concat(L) : L;
+        body = chips + (items.length ? `<div class="sgrid">${items.map(tile).join("")}</div>` : `<div class="note">Nothing here yet.</div>`);
+      }
+    }
+    const tip = dev && !known && (as && (as.attributes.source_list || []).length) ? `<div class="note">Spotify hasn't seen “${esc(dev)}” yet. Tap <b>Playing to</b> to pick it from Spotify's list, or set its Spotify name in the card settings.</div>` : "";
+    this._spBody = tip + body;
+    // a small player while Spotify plays (on any amp)
+    const playing = as && (as.state === "playing" || as.state === "paused");
+    const a = (as && as.attributes) || {};
+    const mini = playing ? `<div class="mini glass">${a.entity_picture ? `<span class="sart"><img src="${esc(a.entity_picture)}" alt=""></span>` : `<span class="sart">${svg("music", 18)}</span>`}<span class="mt"><b>${esc(a.media_title || "Spotify")}</b><small>${esc([a.media_artist, a.source].filter(Boolean).join(" · "))}</small></span><button class="mb" data-a="spm" data-e="${esc(acct)}" data-v="media_play_pause" aria-label="${as.state === "playing" ? "Pause" : "Play"}">${svg(as.state === "playing" ? "pause" : "play", 18)}</button><button class="mb" data-a="spm" data-e="${esc(acct)}" data-v="media_next_track" aria-label="Next">${svg("next", 18)}</button></div>` : "";
+    return `${target}${search}<div data-spbody>${this._spBody}</div>${mini}`;
+  }
+  _spDevSheet() {
+    const acct = this.spAcct();
+    const s = this.st(acct);
+    const list = ((s && s.attributes.source_list) || []).slice();
+    const cur = this.spDevice(this._spAmp);
+    if (cur && list.indexOf(cur) < 0) list.unshift(cur);
+    const active = s && s.attributes.source;
+    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Play Spotify on"><div class="box">
+      <h2>Play Spotify on <button class="iconbtn" data-a="close" aria-label="Close">${svg("close", 18)}</button></h2>
+      <div class="sdev">${list.length ? list.map((n) => `<button class="${n === cur ? "on" : ""}" data-a="spsel" data-v="${esc(n)}">${svg("speaker", 20)}<span><b>${esc(n)}</b><small>${n === active && s.state === "playing" ? "Playing now" : "Spotify Connect"}</small></span>${n === cur ? svg("check", 18) : ""}</button>`).join("") : `<div class="note">Spotify doesn't list any devices yet. Play something on an amp from the Spotify app once, then try again.</div>`}</div>
+      <p class="hint2">Music moves to the amp you pick and keeps playing from where it was.</p></div></div>`;
   }
 
   _groupBox(e, roomSpeakers) {
@@ -1484,10 +1907,16 @@ const LABELS = {
   url: "RTSP link or go2rtc stream name",
   group_lights: "Lights in this group",
   webrtc: "Play cameras live with WebRTC (needs the WebRTC Camera integration)",
+  sp_entity: "Spotify account (leave empty and it's found by itself)",
+  sp_on: "Show Spotify on the Music page",
   gd_name: "Name on the tile (optional)",
   gd_entity: "What opens and closes it (relay switch, cover, button or script)",
   gd_sensor: "Door sensor that says open / closed (optional)",
 };
+const SP_SCHEMA = [
+  { name: "sp_on", selector: { boolean: {} } },
+  { name: "sp_entity", selector: { entity: { filter: { domain: ["media_player"] } } } },
+];
 const GD_SCHEMA = [
   { name: "gd_name", selector: { text: {} } },
   { name: "gd_entity", selector: { entity: { filter: { domain: GD_TAP } } } },
@@ -1601,7 +2030,7 @@ class ArControlPanelCardEditor extends HTMLElement {
   _doors() { return Array.isArray(this._cfg.garage) ? this._cfg.garage.map((d) => (typeof d === "string" ? { entity: d } : d)).filter((d) => d && typeof d === "object") : []; }
   _streams() { return Array.isArray(this._cfg.rtsp) ? this._cfg.rtsp.filter((r) => r && typeof r === "object") : []; }
   _lgs(i) { const r = this._rooms()[i] || {}; return (Array.isArray(r.light_groups) ? r.light_groups : []).filter((g) => g && typeof g === "object"); }
-  _shapeOf() { return this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().map((r, i) => this._lgs(i).length).join(",") + "/" + this._rooms().length : 0) + ":" + this._streams().length + ":" + this._doors().length; }
+  _shapeOf() { return this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().map((r, i) => this._lgs(i).length).join(",") + "/" + this._rooms().length : 0) + ":" + this._streams().length + ":" + this._doors().length + ":" + this._amps().join(","); }
 
   // The lights that can be renamed: a room's lights and its groups' lights
   // ("nm:3"), or in automatic mode every light the card found ("nm:auto").
@@ -1824,6 +2253,16 @@ class ArControlPanelCardEditor extends HTMLElement {
       const g = this._lgs(i)[j] || {};
       return { name: g.name || "", group_lights: arr(g.lights) };
     }
+    if (key === "sp") {
+      const sp = c.spotify;
+      return { sp_on: sp !== false && !(sp && sp.enabled === false), sp_entity: (sp && typeof sp === "object" && sp.entity) || (typeof sp === "string" ? sp : "") };
+    }
+    if (key === "spd") {
+      const m = (c.spotify && typeof c.spotify === "object" && c.spotify.devices) || {};
+      const d = {};
+      this._amps().forEach((e) => (d[e] = typeof m[e] === "string" ? m[e] : ""));
+      return d;
+    }
     if (key.indexOf("gd:") === 0) {
       const d = this._doors()[Number(key.slice(3))] || {};
       return { gd_name: d.name || "", gd_entity: d.entity || "", gd_sensor: d.sensor || "" };
@@ -1903,6 +2342,18 @@ class ArControlPanelCardEditor extends HTMLElement {
       c.rooms = rooms;
     } else if (key === "rtc") {
       if (v.webrtc === false) c.webrtc = false; else delete c.webrtc;
+    } else if (key === "sp" || key === "spd") {
+      const old = c.spotify;
+      const sp = old && typeof old === "object" ? Object.assign({}, old) : typeof old === "string" ? { entity: old } : {};
+      if (key === "sp") {
+        if (v.sp_entity) sp.entity = v.sp_entity; else delete sp.entity;
+        if (v.sp_on === false) sp.enabled = false; else delete sp.enabled;
+      } else {
+        const m = Object.assign({}, sp.devices);
+        this._amps().forEach((e) => { const t = typeof v[e] === "string" ? v[e] : ""; if (t.trim()) m[e] = t; else delete m[e]; });
+        if (Object.keys(m).length) sp.devices = m; else delete sp.devices;
+      }
+      if (Object.keys(sp).length) c.spotify = sp; else delete c.spotify;
     } else if (key.indexOf("gd:") === 0) {
       const list = this._doors();
       const d = { entity: v.gd_entity || "" };
@@ -1993,6 +2444,50 @@ class ArControlPanelCardEditor extends HTMLElement {
     this._emit();
     this._render();
   }
+  // The amps (speakers) on the Music pages, for matching to Spotify Connect.
+  _amps() {
+    const h = this._hass;
+    if (!h || !h.states) return [];
+    const reg = h.entities || {};
+    const rooms = this._cfg.mode === "manual" ? this._rooms().map((r) => ({ music: arr(r.music) })) : autoLayout(h, this._cfg).rooms;
+    return uniq([].concat.apply([], rooms.map((r) => r.music || []))).filter((e) => h.states[e] && !["spotify", "spotifyplus"].includes((reg[e] || {}).platform));
+  }
+  _spAccount() {
+    const h = this._hass;
+    const sp = this._cfg.spotify;
+    if (!h || !h.states || sp === false || (sp && sp.enabled === false)) return null;
+    const want = typeof sp === "string" ? sp : sp && sp.entity;
+    if (want) return h.states[want] ? want : null;
+    const reg = h.entities || {};
+    const ids = Object.keys(h.states).filter((e) => e.indexOf("media_player.") === 0);
+    return ids.find((e) => (reg[e] || {}).platform === "spotifyplus") || ids.find((e) => (reg[e] || {}).platform === "spotify") || ids.find((e) => /^media_player\.spotify/.test(e)) || null;
+  }
+  _spSection(root, add) {
+    add(`<div class="sec">Spotify</div>`);
+    const acct = this._spAccount();
+    const h = this._hass;
+    const plus = acct && h.services && h.services.spotifyplus && ((h.entities || {})[acct] || {}).platform === "spotifyplus";
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.setAttribute("data-sphint", "");
+    hint.textContent = !acct
+      ? "No Spotify account found yet. Add the SpotifyPlus integration (HACS, recommended, it can search) or Home Assistant's Spotify integration; it needs Spotify Premium."
+      : plus
+        ? "Found " + friendly(h, acct) + " (SpotifyPlus): search, playlists, liked songs and recent plays on the Music page."
+        : "Found " + friendly(h, acct) + ". Playlists, liked songs and recent plays work; for search, add SpotifyPlus from HACS.";
+    root.appendChild(hint);
+    root.appendChild(this._form("sp", SP_SCHEMA, this._data("sp")));
+    const box = document.createElement("details");
+    box.className = "names";
+    const list = (acct && h.states[acct].attributes.source_list) || [];
+    box.innerHTML = `<summary>🔊 Match amps to Spotify Connect (optional)</summary><p class="hint"></p>`;
+    box.querySelector("p").textContent = "The card matches each amp to its Spotify Connect name by itself. If an amp has a different name in Spotify, type that name here." + (list.length ? " Spotify knows: " + list.join(", ") + "." : "");
+    const f = this._form("spd", this._amps().map((e) => ({ name: e, selector: { text: {} } })), this._data("spd"));
+    f.computeLabel = (sc) => friendly(h, sc.name);
+    box.appendChild(f);
+    root.appendChild(box);
+  }
+
   _garageSection(root, add) {
     add(`<div class="sec">Garage doors</div>`);
     add(`<p class="hint">Add a garage door and a Garage page appears, in every room and on Whole house. Tap a door to open or close it, hold it for details. Pick the sensor too, so the card knows if it's open (it turns red after 10 minutes open).</p>`);
@@ -2051,7 +2546,8 @@ class ArControlPanelCardEditor extends HTMLElement {
       lo.innerHTML = `<summary>↕ Order of lights in each room</summary><p class="hint">Drag ⠿ to move a light or light group up or down in its room.</p><div data-autolights></div>`;
       root.appendChild(lo);
       root.appendChild(this._nameBox("nm:auto"));
-      this._garageSection(root, add);
+      this._spSection(root, add);
+    this._garageSection(root, add);
     this._camSection(root, add);
       this._refreshSorts();
       return;
@@ -2101,6 +2597,7 @@ class ArControlPanelCardEditor extends HTMLElement {
     add(`<div class="sec">Whole house</div>`);
     add(`<p class="hint">These show on their own pages for the whole home.</p>`);
     root.appendChild(this._form("house", HOUSE_SCHEMA, this._data("house")));
+    this._spSection(root, add);
     this._garageSection(root, add);
     this._camSection(root, add);
     this._refreshSorts();
