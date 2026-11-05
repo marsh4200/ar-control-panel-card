@@ -131,6 +131,30 @@ Choose **Whole house** and open **Lights**: every light is listed under its room
 
 The rooms appear in **your room order**: in the editor, move rooms with ↑ ↓ (in "I pick my own" mode), or in automatic mode use *Only these areas* to set the order. Lights inside a room follow the order you picked them in.
 
+## Colours
+
+Pick an **accent** (lights, buttons, sliders, glows) and a **background**. Any accent goes with any background. In the editor: **General** > **Colours**. Choose **Custom colour…** to pick your own.
+
+| Accent | | Background | |
+|---|---|---|---|
+| `gold` (default) | `orange` | `warm` (default) | `midnight` |
+| `champagne` | `red` | `graphite` | `slate` |
+| `silver` | `rose` | `black` | `forest` |
+| `white` | `pink` | `silver` (brushed steel) | `plum` |
+| `blue` / `ice` | `violet` | | `wine` |
+| `teal` / `green` / `lime` | | | |
+
+```yaml
+type: custom:ar-control-panel-card
+accent: silver
+background: midnight
+# or any colour of your own:
+# accent: "#4fa3ff"
+# background: "#1f2a36"
+```
+
+Leave both out for the original gold on warm charcoal. The climate dial keeps blue for cool and orange for heat whatever the accent.
+
 ## Automatic mode (the default)
 
 With no settings, each Home Assistant **area** becomes a room and a **Whole house** room covers everything:

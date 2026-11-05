@@ -80,12 +80,74 @@ const uniq = (a) => a.filter((x, i) => a.indexOf(x) === i);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const pad = (n) => (n < 10 ? "0" : "") + n;
 
+// --- colours: pick an accent and a background, mix and match -------------------------
+// YAML: accent: blue   background: midnight   (or any hex, e.g. accent: "#4fa3ff")
+const ACCENTS = {
+  gold: { name: "Gold (default)", c: "#f2b866", d: "#e89a3c" },
+  champagne: { name: "Champagne", c: "#ecd3a4", d: "#c9a96e" },
+  silver: { name: "Silver", c: "#d9dee5", d: "#9ea7b3" },
+  white: { name: "Pure white", c: "#ffffff", d: "#c4c9d0" },
+  blue: { name: "Blue", c: "#6aa8ff", d: "#3a72e0" },
+  ice: { name: "Ice blue", c: "#8fd8ff", d: "#4aa8dc" },
+  teal: { name: "Teal", c: "#4fd1c5", d: "#1f9e93" },
+  green: { name: "Emerald", c: "#6ee39a", d: "#2fae63" },
+  lime: { name: "Lime", c: "#c6f06a", d: "#8cc13a" },
+  orange: { name: "Sunset orange", c: "#ff9e5e", d: "#e0652a" },
+  red: { name: "Red", c: "#ff7a6b", d: "#d8443a" },
+  rose: { name: "Rose gold", c: "#f0b4a4", d: "#c97d6a" },
+  pink: { name: "Pink", c: "#ff8fb8", d: "#e0507e" },
+  violet: { name: "Violet", c: "#b69cff", d: "#7c5ce0" },
+};
+const BACKGROUNDS = {
+  warm: { name: "Warm charcoal (default)", a: "#2b2620", b: "#1a1916", c: "#101317", g: "90,120,170" },
+  graphite: { name: "Graphite", a: "#2a2c30", b: "#18191c", c: "#0e0f11", g: "140,150,165" },
+  black: { name: "Black (OLED)", a: "#161616", b: "#0a0a0a", c: "#000000", g: "70,70,80" },
+  silver: { name: "Brushed steel", a: "#3a3f47", b: "#23272d", c: "#15181c", g: "200,210,225" },
+  midnight: { name: "Midnight blue", a: "#1a2740", b: "#0f1729", c: "#080c16", g: "70,120,210" },
+  slate: { name: "Slate", a: "#2b333d", b: "#1b2129", c: "#10151b", g: "110,150,190" },
+  forest: { name: "Forest", a: "#1e2d25", b: "#131d18", c: "#0a110d", g: "90,170,130" },
+  plum: { name: "Plum", a: "#2d2036", b: "#1c1523", c: "#110c16", g: "170,110,200" },
+  wine: { name: "Wine", a: "#35191f", b: "#211014", c: "#13090b", g: "200,90,110" },
+};
+const hexRgb = (h) => {
+  let x = String(h || "").trim().replace(/^#/, "");
+  if (x.length === 3) x = x.split("").map((c) => c + c).join("");
+  if (!/^[0-9a-f]{6}$/i.test(x)) return null;
+  return [0, 2, 4].map((i) => parseInt(x.slice(i, i + 2), 16));
+};
+const toHex = (r) => "#" + r.map((v) => pad2(Math.round(clamp(v, 0, 255)).toString(16))).join("");
+const pad2 = (s) => (s.length < 2 ? "0" + s : s);
+const mixRgb = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+const colorIn = (v) => (Array.isArray(v) && v.length === 3 ? toHex(v) : v);
+// Every theme variable the card's styles use, from an accent and a background.
+function themeVars(cfg) {
+  const av = colorIn(cfg.accent), bv = colorIn(cfg.background);
+  const ap = ACCENTS[av] || ACCENTS.gold;
+  const A = hexRgb(ACCENTS[av] ? ap.c : av) || hexRgb(ACCENTS.gold.c);
+  const D = ACCENTS[av] ? hexRgb(ap.d) : hexRgb(av) ? mixRgb(A, [0, 0, 0], 0.2) : hexRgb(ACCENTS.gold.d);
+  const bp = BACKGROUNDS[bv];
+  const Bc = !bp && hexRgb(bv);
+  const bg = bp
+    ? { a: hexRgb(bp.a), b: hexRgb(bp.b), c: hexRgb(bp.c), g: bp.g }
+    : Bc ? { a: Bc, b: mixRgb(Bc, [0, 0, 0], 0.4), c: mixRgb(Bc, [0, 0, 0], 0.65), g: mixRgb(Bc, [255, 255, 255], 0.35).map(Math.round).join(",") }
+    : { a: hexRgb(BACKGROUNDS.warm.a), b: hexRgb(BACKGROUNDS.warm.b), c: hexRgb(BACKGROUNDS.warm.c), g: BACKGROUNDS.warm.g };
+  const tile = mixRgb(bg.b, A, 0.12).map(Math.round);
+  return {
+    "--acc": toHex(A), "--acc-rgb": A.join(","), "--acc2": toHex(D),
+    "--acc-dk": toHex(mixRgb(D, [0, 0, 0], 0.12)), "--acc-ink": toHex(mixRgb(D, [0, 0, 0], 0.82)),
+    "--acc-soft": toHex(mixRgb(A, [255, 255, 255], 0.6)), "--acc-hi": toHex(mixRgb(A, [255, 255, 255], 0.55)),
+    "--acc-thumb": toHex(mixRgb(A, [255, 255, 255], 0.82)), "--tile-on": `rgba(${tile.join(",")},.62)`,
+    "--bg-a": toHex(bg.a), "--bg-b": toHex(bg.b), "--bg-c": toHex(bg.c), "--bg-glow": bg.g,
+    "--art-a": toHex(mixRgb(bg.a, A, 0.08).map((v) => v + 14)), "--art-b": toHex(bg.b),
+  };
+}
+
 const CSS = `
-:host{display:block;height:100%;min-height:calc(100vh - var(--header-height, 56px));font-family:Roboto,"Segoe UI",system-ui,sans-serif;color:#f3f1ec;--ink:#f3f1ec;--ink-rgb:243,241,236;--acc:#f2b866;--acc-rgb:242,184,102;--glass:rgba(22,24,30,.46);--line:rgba(255,255,255,.12)}
+:host{display:block;height:100%;min-height:calc(100vh - var(--header-height, 56px));font-family:Roboto,"Segoe UI",system-ui,sans-serif;color:#f3f1ec;--ink:#f3f1ec;--ink-rgb:243,241,236;--acc:#f2b866;--acc-rgb:242,184,102;--acc2:#e89a3c;--acc-dk:#c9853a;--acc-ink:#2a1a06;--acc-soft:#ffe2b8;--acc-hi:#ffe2b0;--tile-on:var(--tile-on);--bg-a:#2b2620;--bg-b:#1a1916;--bg-c:#101317;--bg-glow:90,120,170;--art-a:#3a3229;--art-b:#1d1b19;--glass:rgba(22,24,30,.46);--line:rgba(255,255,255,.12)}
 *{box-sizing:border-box}
 button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .root{position:relative;min-height:100%;height:100%;overflow-y:auto;overflow-x:hidden;font-family:Roboto,"Segoe UI",system-ui,sans-serif;color:var(--ink);
-  background:radial-gradient(70% 45% at 12% 12%,rgba(var(--acc-rgb),.26),transparent 60%),radial-gradient(60% 40% at 100% 100%,rgba(90,120,170,.22),transparent 65%),linear-gradient(165deg,#2b2620 0%,#1a1916 45%,#101317 100%);background-attachment:fixed}
+  background:radial-gradient(70% 45% at 12% 12%,rgba(var(--acc-rgb),.26),transparent 60%),radial-gradient(60% 40% at 100% 100%,rgba(var(--bg-glow),.22),transparent 65%),linear-gradient(165deg,var(--bg-a) 0%,var(--bg-b) 45%,var(--bg-c) 100%);background-attachment:fixed}
 .wrap{max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 18px) 16px calc(env(safe-area-inset-bottom,0px) + 118px)}
 .top{display:flex;align-items:center;gap:10px;padding:0 6px}
 .top h1{flex:1;margin:0;font-size:30px;font-weight:600;letter-spacing:-.01em;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -110,21 +172,21 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .card .t{font-size:16px;font-weight:700}
 .card .s{margin-top:2px;font-size:13px;font-weight:600;color:rgba(var(--ink-rgb),.66);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ic{width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;color:rgba(var(--ink-rgb),.8)}
-.ic.lit{background:linear-gradient(145deg,var(--acc),#e89a3c);color:#2a1a06;box-shadow:0 0 20px rgba(var(--acc-rgb),.45)}
+.ic.lit{background:linear-gradient(145deg,var(--acc),var(--acc2));color:var(--acc-ink);box-shadow:0 0 20px rgba(var(--acc-rgb),.45)}
 .ic.ok{background:rgba(80,190,140,.16);color:#8ee3b0}
 .ic.warn{background:rgba(255,107,107,.18);color:#ffb0b0}
 .glow{position:absolute;right:-36px;top:-36px;width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,rgba(var(--acc-rgb),.28),transparent 70%);pointer-events:none}
 .bar{margin-top:16px;display:flex;align-items:center;gap:8px;padding:0 4px}
 .bar .lbl{flex:1;font-size:14px;font-weight:600;color:rgba(var(--ink-rgb),.66);min-width:0}
 .act{height:44px;padding:0 18px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);font-size:14px;font-weight:700;color:rgba(var(--ink-rgb),.88)}
-.act.on{background:rgba(var(--acc-rgb),.16);border-color:rgba(var(--acc-rgb),.5);color:#ffe2b8}
+.act.on{background:rgba(var(--acc-rgb),.16);border-color:rgba(var(--acc-rgb),.5);color:var(--acc-soft)}
 .light{position:relative;overflow:hidden;min-height:132px;padding:14px;border-radius:22px;display:flex;flex-direction:column;justify-content:space-between;gap:10px}
-.light.on{background:rgba(40,33,24,.62);border-color:rgba(var(--acc-rgb),.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 0 24px -8px rgba(var(--acc-rgb),.55)}
+.light.on{background:var(--tile-on);border-color:rgba(var(--acc-rgb),.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 0 24px -8px rgba(var(--acc-rgb),.55)}
 .light .tap{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:10px;-webkit-tap-highlight-color:transparent}
 .light .tap:focus-visible{outline:2px solid var(--acc);outline-offset:4px;border-radius:12px}
 .bulbrow{display:flex;align-items:center;justify-content:space-between}
 .bulb{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);color:rgba(var(--ink-rgb),.5)}
-.on .bulb{background:radial-gradient(circle at 40% 35%,#ffe2b0,var(--acc) 60%,#e89a3c);color:#3a2408;box-shadow:0 0 22px rgba(var(--acc-rgb),.55)}
+.on .bulb{background:radial-gradient(circle at 40% 35%,var(--acc-hi),var(--acc) 60%,var(--acc2));color:var(--acc-ink);box-shadow:0 0 22px rgba(var(--acc-rgb),.55)}
 .lvl{font-size:13px;font-weight:700;color:rgba(var(--ink-rgb),.66)}
 .lgs{margin-top:14px;display:flex;flex-direction:column;gap:12px}
 .rsec{margin-top:22px}
@@ -143,7 +205,7 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .rsh .seg{flex:none;flex-wrap:nowrap}
 .rsh .seg button{width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center}
 .lgrp{position:relative;overflow:hidden;padding:14px;border-radius:22px;display:flex;flex-direction:column;gap:10px}
-.lgrp.on{background:rgba(40,33,24,.62);border-color:rgba(var(--acc-rgb),.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 0 24px -8px rgba(var(--acc-rgb),.55)}
+.lgrp.on{background:var(--tile-on);border-color:rgba(var(--acc-rgb),.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 0 24px -8px rgba(var(--acc-rgb),.55)}
 .lgh{display:flex;align-items:center;gap:12px}
 .lgh .tap{all:unset;cursor:pointer;flex:1;min-width:0;display:flex;align-items:center;gap:12px;-webkit-tap-highlight-color:transparent}
 .lgh .tap:focus-visible{outline:2px solid var(--acc);outline-offset:4px;border-radius:12px}
@@ -154,7 +216,7 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .chv.open{transform:rotate(180deg)}
 .sw{flex:none;position:relative;width:52px;height:30px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid var(--line);padding:0}
 .sw i{position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#d8d4cc;transition:left .18s}
-.sw.on{background:linear-gradient(145deg,var(--acc),#e89a3c);border-color:transparent}
+.sw.on{background:linear-gradient(145deg,var(--acc),var(--acc2));border-color:transparent}
 .sw.on i{left:25px;background:#fff8ec}
 .lgl{display:flex;flex-direction:column;gap:6px;margin-top:2px;padding-top:10px;border-top:1px solid var(--line)}
 .lrow{padding:8px 10px;border-radius:16px;background:rgba(255,255,255,.04)}
@@ -167,10 +229,10 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .lrow:not(.on) .nm{color:rgba(var(--ink-rgb),.75)}
 .nm{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:0}
-input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:999px;background:linear-gradient(90deg,#c9853a var(--p,0%),rgba(0,0,0,.35) var(--p,0%))}
-input[type=range]::-moz-range-track{height:8px;border-radius:999px;background:linear-gradient(90deg,#c9853a var(--p,0%),rgba(0,0,0,.35) var(--p,0%))}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:-7px;border-radius:50%;background:#fff3d9;box-shadow:0 2px 8px rgba(0,0,0,.5)}
-input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radius:50%;background:#fff3d9}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:999px;background:linear-gradient(90deg,var(--acc-dk) var(--p,0%),rgba(0,0,0,.35) var(--p,0%))}
+input[type=range]::-moz-range-track{height:8px;border-radius:999px;background:linear-gradient(90deg,var(--acc-dk) var(--p,0%),rgba(0,0,0,.35) var(--p,0%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:-7px;border-radius:50%;background:var(--acc-thumb,#fff3d9);box-shadow:0 2px 8px rgba(0,0,0,.5)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radius:50%;background:var(--acc-thumb,#fff3d9)}
 input[type=range]:disabled{opacity:.35}
 .tabs{margin-top:14px;display:flex;gap:8px;overflow-x:auto;padding:0 2px 2px;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
@@ -205,12 +267,12 @@ input[type=range]:disabled{opacity:.35}
 .seg button{height:36px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:rgba(var(--ink-rgb),.72);font-size:12px;font-weight:700}
 .seg button.on{background:rgba(255,255,255,.16);color:var(--ink)}
 .np{margin-top:16px;padding:18px;display:flex;flex-direction:column;align-items:center;gap:14px}
-.art{width:min(260px,70vw);aspect-ratio:1;border-radius:20px;background:linear-gradient(160deg,#3a3229,#1d1b19);display:flex;align-items:center;justify-content:center;color:rgba(var(--ink-rgb),.3);overflow:hidden;box-shadow:0 20px 40px -20px rgba(0,0,0,.8)}
+.art{width:min(260px,70vw);aspect-ratio:1;border-radius:20px;background:linear-gradient(160deg,var(--art-a),var(--art-b));display:flex;align-items:center;justify-content:center;color:rgba(var(--ink-rgb),.3);overflow:hidden;box-shadow:0 20px 40px -20px rgba(0,0,0,.8)}
 .art img{width:100%;height:100%;object-fit:cover}
 .np .tt{font-size:19px;font-weight:700;text-align:center}
 .np .ar{font-size:14px;font-weight:600;color:rgba(var(--ink-rgb),.66);text-align:center;margin-top:-8px}
 .ctl{display:flex;align-items:center;gap:22px}
-.big{width:72px;height:72px;border-radius:50%;background:linear-gradient(145deg,var(--acc),#e89a3c);color:#2a1a06;border:0;display:flex;align-items:center;justify-content:center;box-shadow:0 0 26px rgba(var(--acc-rgb),.4)}
+.big{width:72px;height:72px;border-radius:50%;background:linear-gradient(145deg,var(--acc),var(--acc2));color:var(--acc-ink);border:0;display:flex;align-items:center;justify-content:center;box-shadow:0 0 26px rgba(var(--acc-rgb),.4)}
 .vol{width:100%;display:flex;align-items:center;gap:10px}
 .camhero{position:relative;margin-top:16px;width:100%;aspect-ratio:16/9;border-radius:22px;overflow:hidden;border:1px solid var(--line);background:linear-gradient(160deg,#3a4048,#22272d 55%,#15181c);padding:0;display:block}
 .camhero img,.camsm img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -249,7 +311,7 @@ input[type=range]:disabled{opacity:.35}
 .sheet .box{width:min(560px,100%);max-height:80vh;overflow-y:auto;padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 18px);border-radius:24px 24px 0 0;background:#1b1a18;border:1px solid var(--line)}
 .sheet h2{margin:0 0 12px;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
 .opt{width:100%;min-height:52px;margin-top:6px;padding:0 16px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid var(--line);text-align:left;font-size:15px;font-weight:600}
-.opt.on{background:rgba(var(--acc-rgb),.18);border-color:rgba(var(--acc-rgb),.5);color:#ffe2b8}
+.opt.on{background:rgba(var(--acc-rgb),.18);border-color:rgba(var(--acc-rgb),.5);color:var(--acc-soft)}
 .keys{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
 .keys button{height:60px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid var(--line);font-size:24px;font-weight:400}
 .dots{display:flex;justify-content:center;gap:10px;height:16px}
@@ -260,8 +322,8 @@ input[type=range]:disabled{opacity:.35}
 /* ---- Scenes & Automations (Auto & Scenes) ---- */
 .asgrid{margin-top:14px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .astile{position:relative;min-height:118px;border-radius:22px;background:var(--glass);border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.10);transition:background .3s,border-color .3s,box-shadow .3s}
-.astile.hit{background:rgba(40,33,24,.7);border-color:rgba(var(--acc-rgb),.5);box-shadow:0 0 24px -8px rgba(var(--acc-rgb),.6)}
-.astile.hit .asic{background:linear-gradient(145deg,var(--acc),#e89a3c);color:#2a1a06}
+.astile.hit{background:var(--tile-on);border-color:rgba(var(--acc-rgb),.5);box-shadow:0 0 24px -8px rgba(var(--acc-rgb),.6)}
+.astile.hit .asic{background:linear-gradient(145deg,var(--acc),var(--acc2));color:var(--acc-ink)}
 .astm,.astile.new{all:unset;box-sizing:border-box;cursor:pointer;width:100%;height:100%;min-height:118px;padding:14px;display:flex;flex-direction:column;gap:6px;-webkit-tap-highlight-color:transparent}
 .astm:focus-visible,.astile.new:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:22px}
 .astile.new{border:1px dashed rgba(var(--acc-rgb),.5);color:var(--acc)}
@@ -289,7 +351,7 @@ input[type=range]:disabled{opacity:.35}
 .asdh{display:flex;align-items:center;gap:10px;color:var(--acc)}.asdh b{flex:1;min-width:0;color:var(--ink);font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .asdx{flex:none;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.06);color:rgba(var(--ink-rgb),.6);display:flex;align-items:center;justify-content:center}
 .asseg{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}.asseg button{flex:1;min-width:64px;height:40px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:rgba(var(--ink-rgb),.7);font-size:13px;font-weight:700}
-.asseg button.on{background:rgba(var(--acc-rgb),.18);border-color:rgba(var(--acc-rgb),.55);color:#ffe2b8}
+.asseg button.on{background:rgba(var(--acc-rgb),.18);border-color:rgba(var(--acc-rgb),.55);color:var(--acc-soft)}
 .asslab{display:flex;justify-content:space-between;margin:12px 2px 2px;font-size:13px;font-weight:600;color:rgba(var(--ink-rgb),.66)}.asslab b{color:var(--ink)}
 .astwo{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}.astwo .act{padding:0 8px;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px}
 .asdel{all:unset;box-sizing:border-box;cursor:pointer;margin-top:18px;width:100%;height:46px;border-radius:16px;border:1px solid rgba(255,107,107,.4);color:#ffb0b0;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700}
@@ -308,7 +370,7 @@ input[type=range]:disabled{opacity:.35}
 .ssearch input::placeholder{color:rgba(var(--ink-rgb),.45)}
 .ssearch input::-webkit-search-cancel-button{display:none}
 .ssearch button{all:unset;cursor:pointer;width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:rgba(var(--ink-rgb),.6)}
-.sart{flex:none;width:44px;height:44px;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;color:rgba(var(--ink-rgb),.45);background:linear-gradient(160deg,#3a3229,#1d1b19)}
+.sart{flex:none;width:44px;height:44px;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;color:rgba(var(--ink-rgb),.45);background:linear-gradient(160deg,var(--art-a),var(--art-b))}
 .sart img{width:100%;height:100%;object-fit:cover}
 .sart.round{border-radius:50%}
 .sart.liked{background:linear-gradient(135deg,#5b3df5,#a8c8ff);color:#fff}
@@ -322,7 +384,7 @@ input[type=range]:disabled{opacity:.35}
 .spl b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .spl small{font-size:12px;font-weight:600;color:rgba(var(--ink-rgb),.55);margin-top:-4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .srow .spl b{font-size:12px}
-.splp{position:absolute;right:8px;top:8px;width:44px;height:44px;border-radius:50%;border:0;background:linear-gradient(145deg,var(--acc),#e89a3c);color:#2a1a06;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(0,0,0,.45)}
+.splp{position:absolute;right:8px;top:8px;width:44px;height:44px;border-radius:50%;border:0;background:linear-gradient(145deg,var(--acc),var(--acc2));color:var(--acc-ink);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(0,0,0,.45)}
 .srow .splp{width:36px;height:36px;right:6px;top:6px}
 .sh{margin:18px 4px 0;font-size:16px;font-weight:700}
 .stop{margin-top:10px;padding:12px;display:flex;align-items:center;gap:14px;border-radius:20px}
@@ -331,7 +393,7 @@ input[type=range]:disabled{opacity:.35}
 .stop .sart.round{border-radius:50%}
 .st2{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .st2 b{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.st2 small{font-size:13px;color:rgba(var(--ink-rgb),.6);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.splay{flex:none;width:52px;height:52px;border-radius:50%;border:0;background:linear-gradient(145deg,var(--acc),#e89a3c);color:#2a1a06;display:flex;align-items:center;justify-content:center;box-shadow:0 0 22px rgba(var(--acc-rgb),.4)}
+.splay{flex:none;width:52px;height:52px;border-radius:50%;border:0;background:linear-gradient(145deg,var(--acc),var(--acc2));color:var(--acc-ink);display:flex;align-items:center;justify-content:center;box-shadow:0 0 22px rgba(var(--acc-rgb),.4)}
 .strk{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:flex;align-items:center;gap:12px;padding:8px 12px 8px 8px;-webkit-tap-highlight-color:transparent}
 .strk.glass{border-radius:16px}
 .strk:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
@@ -2390,6 +2452,8 @@ class ArControlPanelCard extends ArControlPanel {
   setConfig(config) {
     this._config = config || {};
     this._s.panel = 0;
+    const tv = themeVars(this._config);
+    Object.keys(tv).forEach((k) => this.style.setProperty(k, tv[k]));
     if (this._hass) this._build();
   }
   getCardSize() { return 14; }
@@ -2426,6 +2490,10 @@ const LABELS = {
   gd_name: "Name on the tile (optional)",
   gd_entity: "What opens and closes it (relay switch, cover, button or script)",
   gd_sensor: "Door sensor that says open / closed (optional)",
+  accent: "Accent colour (lights, buttons, sliders)",
+  accent_custom: "Your own accent colour",
+  background: "Background",
+  background_custom: "Your own background colour",
 };
 const SPK_SCHEMA = [{ name: "speakers", selector: ENT(["media_player"]) }];
 const ED_TABS = [["general", "General"], ["rooms", "Rooms"], ["house", "Whole house"], ["music", "Music"], ["garage", "Garage"], ["cameras", "Cameras"]];
@@ -2453,6 +2521,11 @@ const MODE_SCHEMA = [
   ] } } },
   { name: "room_home", selector: { boolean: {} } },
 ];
+const themeSchema = (c) => [
+  { name: "accent", selector: { select: { mode: "dropdown", options: Object.keys(ACCENTS).map((k) => ({ value: k, label: ACCENTS[k].name })).concat([{ value: "custom", label: "Custom colour…" }]) } } },
+].concat(c.accent === "custom" ? [{ name: "accent_custom", selector: { color_rgb: {} } }] : []).concat([
+  { name: "background", selector: { select: { mode: "dropdown", options: Object.keys(BACKGROUNDS).map((k) => ({ value: k, label: BACKGROUNDS[k].name })).concat([{ value: "custom", label: "Custom colour…" }]) } } },
+]).concat(c.background === "custom" ? [{ name: "background_custom", selector: { color_rgb: {} } }] : []);
 const AUTO_SCHEMA = [
   { name: "areas", selector: { area: { multiple: true } } },
   { name: "exclude", selector: { entity: { multiple: true } } },
@@ -2597,7 +2670,7 @@ class ArControlPanelCardEditor extends HTMLElement {
   _doors() { return Array.isArray(this._cfg.garage) ? this._cfg.garage.map((d) => (typeof d === "string" ? { entity: d } : d)).filter((d) => d && typeof d === "object") : []; }
   _streams() { return Array.isArray(this._cfg.rtsp) ? this._cfg.rtsp.filter((r) => r && typeof r === "object") : []; }
   _lgs(i) { const r = this._rooms()[i] || {}; return (Array.isArray(r.light_groups) ? r.light_groups : []).filter((g) => g && typeof g === "object"); }
-  _shapeOf() { return this._tab + ":" + this._ri + ":" + this._wholeOn() + ":" + this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().map((r, i) => this._lgs(i).length).join(",") + "/" + this._rooms().length : 0) + ":" + this._streams().length + ":" + this._doors().length + ":" + this._amps().join(","); }
+  _shapeOf() { const th = this._data("theme"); return th.accent + th.background + ":" + this._tab + ":" + this._ri + ":" + this._wholeOn() + ":" + this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().map((r, i) => this._lgs(i).length).join(",") + "/" + this._rooms().length : 0) + ":" + this._streams().length + ":" + this._doors().length + ":" + this._amps().join(","); }
 
   // The lights that can be renamed: a room's lights and its groups' lights
   // ("nm:3"), or in automatic mode every light the card found ("nm:auto").
@@ -2876,6 +2949,11 @@ class ArControlPanelCardEditor extends HTMLElement {
     if (key === "mode") return { title: c.title || "", mode: c.mode, room_home: !!c.room_home };
     if (key === "auto") return { areas: arr(c.areas), exclude: arr(c.exclude), light_switches: arr(c.light_switches), show_unassigned: c.show_unassigned !== false, whole_house: c.whole_house !== false };
     if (key === "house") return { cameras: arr(c.cameras), security: arr(c.security), utilities: arr(c.utilities), whole_house: c.whole_house !== false };
+    if (key === "theme") {
+      const pick = (v, list) => (v == null || v === "" ? Object.keys(list)[0] : list[v] ? v : "custom");
+      const rgb = (v) => (!v || ACCENTS[v] || BACKGROUNDS[v] ? undefined : hexRgb(colorIn(v)) || undefined);
+      return { accent: pick(c.accent, ACCENTS), accent_custom: rgb(c.accent), background: pick(c.background, BACKGROUNDS), background_custom: rgb(c.background) };
+    }
     if (key === "rtc") return { webrtc: c.webrtc !== false };
     if (key.indexOf("lg:") === 0) {
       const [, i, j] = key.split(":").map(Number);
@@ -2957,6 +3035,17 @@ class ArControlPanelCardEditor extends HTMLElement {
         if (t.trim()) names[e] = t; else delete names[e];
       });
       if (Object.keys(names).length) c.names = names; else delete c.names;
+      this._emit();
+      return;
+    }
+    if (key === "theme") {
+      const set = (k, preset, custom, first) => {
+        if (preset === "custom") { if (custom && custom.length === 3) c[k] = toHex(custom); else if (!c[k] || ACCENTS[c[k]] || BACKGROUNDS[c[k]]) c[k] = k === "accent" ? ACCENTS.gold.c : BACKGROUNDS.warm.a; }
+        else if (!preset || preset === first) delete c[k];
+        else c[k] = preset;
+      };
+      set("accent", v.accent, v.accent_custom, "gold");
+      set("background", v.background, v.background_custom, "warm");
       this._emit();
       return;
     }
@@ -3193,6 +3282,9 @@ class ArControlPanelCardEditor extends HTMLElement {
     if (tab === "general") {
       root.appendChild(this._form("mode", MODE_SCHEMA, this._data("mode")));
       add(`<p class="hint">${manual ? "Set up each room on the <b>Rooms</b> tab." : "Each Home Assistant area becomes a room. Choose “I pick my own rooms and entities” to choose every light, AC, speaker and blind yourself."}</p>`);
+      add(`<div class="sec">Colours</div>`);
+      add(`<p class="hint">Pick an accent and a background — any accent goes with any background. Choose “Custom colour…” for your own.</p>`);
+      root.appendChild(this._form("theme", themeSchema(this._data("theme")), this._data("theme")));
     }
 
     if (tab === "rooms" && !manual) {
