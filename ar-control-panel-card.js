@@ -9,6 +9,7 @@ const CATS = [
   { key: "lights", title: "Lights", icon: "bulb" },
   { key: "climate", title: "Climate", icon: "thermo" },
   { key: "music", title: "Music", icon: "music" },
+  { key: "watch", title: "Watch", icon: "tv" },
   { key: "cameras", title: "Cameras", icon: "cam" },
   { key: "security", title: "Security", icon: "shield" },
   { key: "shades", title: "Shades", icon: "shades" },
@@ -16,7 +17,31 @@ const CATS = [
   { key: "garage", title: "Garage", icon: "garage" },
   { key: "autoscenes", title: "Scenes", home: "Scenes & Automations", icon: "magic" },
 ];
-const ROOM_KEYS = ["lights", "climate", "music", "shades", "scenes", "presence"];
+const ROOM_KEYS = ["lights", "climate", "music", "watch", "shades", "scenes", "presence"];
+// --- Watch: TVs and their remotes -------------------------------------------------------
+// The remote HUD's buttons, and what each kind of TV calls them. Most go through
+// remote.send_command on the TV's remote entity; LG webOS and Fire TV / ADB
+// go through their own services on the media_player.
+const TV_KEYS = ["up", "down", "left", "right", "ok", "back", "home", "menu", "vol_up", "vol_down", "mute", "ch_up", "ch_down", "play_pause", "power"];
+const TV_KEY_NAME = { up: "Up", down: "Down", left: "Left", right: "Right", ok: "OK", back: "Back", home: "Home", menu: "Menu", vol_up: "Volume up", vol_down: "Volume down", mute: "Mute", ch_up: "Channel up", ch_down: "Channel down", play_pause: "Play / pause", power: "Power" };
+const TV_KINDS = {
+  apple_tv: { name: "Apple TV", keys: { up: "up", down: "down", left: "left", right: "right", ok: "select", back: "menu", home: "home", menu: "top_menu", vol_up: "volume_up", vol_down: "volume_down", play_pause: "play_pause" } },
+  androidtv_remote: { name: "Android TV / Google TV (Android TV Remote)", keys: { up: "DPAD_UP", down: "DPAD_DOWN", left: "DPAD_LEFT", right: "DPAD_RIGHT", ok: "DPAD_CENTER", back: "BACK", home: "HOME", menu: "MENU", vol_up: "VOLUME_UP", vol_down: "VOLUME_DOWN", mute: "VOLUME_MUTE", ch_up: "CHANNEL_UP", ch_down: "CHANNEL_DOWN", play_pause: "MEDIA_PLAY_PAUSE", power: "POWER" } },
+  androidtv: { name: "Fire TV / Android TV (ADB)", via: "adb", keys: { up: "UP", down: "DOWN", left: "LEFT", right: "RIGHT", ok: "CENTER", back: "BACK", home: "HOME", menu: "MENU", vol_up: "input keyevent 24", vol_down: "input keyevent 25", mute: "input keyevent 164", ch_up: "input keyevent 166", ch_down: "input keyevent 167", play_pause: "input keyevent 85" } },
+  samsungtv: { name: "Samsung TV", keys: { up: "KEY_UP", down: "KEY_DOWN", left: "KEY_LEFT", right: "KEY_RIGHT", ok: "KEY_ENTER", back: "KEY_RETURN", home: "KEY_HOME", menu: "KEY_MENU", vol_up: "KEY_VOLUP", vol_down: "KEY_VOLDOWN", mute: "KEY_MUTE", ch_up: "KEY_CHUP", ch_down: "KEY_CHDOWN", power: "KEY_POWER" } },
+  webostv: { name: "LG webOS TV", via: "webos", keys: { up: "UP", down: "DOWN", left: "LEFT", right: "RIGHT", ok: "ENTER", back: "BACK", home: "HOME", menu: "MENU", vol_up: "VOLUMEUP", vol_down: "VOLUMEDOWN", mute: "MUTE", ch_up: "CHANNELUP", ch_down: "CHANNELDOWN" } },
+  braviatv: { name: "Sony Bravia", keys: { up: "Up", down: "Down", left: "Left", right: "Right", ok: "Confirm", back: "Return", home: "Home", menu: "Options", vol_up: "VolumeUp", vol_down: "VolumeDown", mute: "Mute", ch_up: "ChannelUp", ch_down: "ChannelDown", power: "TvPower" } },
+  philips_js: { name: "Philips TV", keys: { up: "CursorUp", down: "CursorDown", left: "CursorLeft", right: "CursorRight", ok: "Confirm", back: "Back", home: "Home", menu: "Options", vol_up: "VolumeUp", vol_down: "VolumeDown", mute: "Mute", ch_up: "ChannelStepUp", ch_down: "ChannelStepDown", play_pause: "PlayPause", power: "Standby" } },
+  roku: { name: "Roku", keys: { up: "up", down: "down", left: "left", right: "right", ok: "select", back: "back", home: "home", menu: "info", vol_up: "volume_up", vol_down: "volume_down", mute: "volume_mute", ch_up: "channel_up", ch_down: "channel_down", play_pause: "play", power: "power" } },
+};
+// Media players that are TVs (automatic mode puts these on Watch, not Music).
+const TV_PLATFORMS = ["apple_tv", "androidtv", "androidtv_remote", "webostv", "samsungtv", "braviatv", "philips_js", "roku", "vizio", "panasonic_viera"];
+// App shortcut colours for the usual apps (by name in the TV's source list).
+const APP_COLORS = [
+  [/netflix/i, "#e50914"], [/youtube/i, "#ff0033"], [/prime|amazon/i, "#00a8e1"], [/disney/i, "#113ccf"], [/dstv/i, "#0a5bd3"],
+  [/showmax/i, "#e4004b"], [/spotify/i, "#1db954"], [/plex/i, "#e5a00d"], [/kodi/i, "#17b2e7"], [/^max$|hbo/i, "#5b2bd9"],
+  [/apple tv|tv\+/i, "#3a3a3c"], [/twitch/i, "#9146ff"], [/hdmi|tv|antenna|live/i, "#5f6b7a"],
+];
 const WX = {
   "clear-night": "Clear", cloudy: "Cloudy", exceptional: "Severe weather", fog: "Fog", hail: "Hail",
   lightning: "Thunderstorms", "lightning-rainy": "Thunderstorms", partlycloudy: "Partly cloudy", pouring: "Heavy rain",
@@ -72,6 +97,13 @@ const P = {
   back: '<path d="M15 18l-6-6 6-6"/>',
   check: '<path d="M5 12l5 5L20 7"/>',
   speaker: '<rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="14" r="4"/><path d="M12 6h.01"/>',
+  tv: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  left: '<path d="M15 6l-6 6 6 6"/>',
+  right: '<path d="M9 6l6 6-6 6"/>',
+  undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
+  vol: '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>',
+  mute: '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/>',
+  dots: '<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>',
 };
 const svg = (n, size, extra) =>
   `<svg width="${size || 22}" height="${size || 22}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"${extra || ""}>${P[n] || ""}</svg>`;
@@ -435,6 +467,63 @@ input[type=range]:disabled{opacity:.35}
 .sdev .sdmore{justify-content:center;font-size:14px;font-weight:700;color:var(--acc);border-style:dashed}
 .hint2{margin:14px 2px 2px;font-size:13px;color:rgba(var(--ink-rgb),.6);font-weight:600}
 @media (prefers-reduced-motion:reduce){.eq i{animation:none}}
+/* ---- Watch: TV and remote HUD ---- */
+.tvdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#7ee2a8;margin-right:7px;vertical-align:1px;box-shadow:0 0 8px rgba(126,226,168,.7)}
+.tvnow{margin-top:16px;padding:12px;display:flex;align-items:center;gap:14px;border-radius:22px}
+.tvnow.on{border-color:rgba(var(--acc-rgb),.35)}
+.tvart{position:relative;flex:none;width:112px;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:linear-gradient(160deg,var(--art-a),var(--art-b));display:flex;align-items:center;justify-content:center;color:rgba(var(--ink-rgb),.35);box-shadow:0 10px 22px -12px rgba(0,0,0,.8)}
+.tvart img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tvlive{position:absolute;left:6px;bottom:6px;padding:2px 6px;border-radius:6px;background:rgba(0,0,0,.6);font-style:normal;font-size:9px;font-weight:800;letter-spacing:.08em;color:#7ee2a8}
+.tvt{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.tvt b{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tvt small{font-size:13px;font-weight:600;color:rgba(var(--ink-rgb),.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tvpow{flex:none;width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:rgba(var(--ink-rgb),.8)}
+.tvpow.on{background:linear-gradient(145deg,var(--acc),var(--acc2));border-color:transparent;color:var(--acc-ink);box-shadow:0 0 22px rgba(var(--acc-rgb),.45)}
+.tvpow:disabled{opacity:.35}
+.rc{margin-top:14px;padding:16px 14px 18px;display:flex;flex-direction:column;align-items:center;gap:18px;border-radius:26px;background:radial-gradient(120% 60% at 50% 0%,rgba(255,255,255,.06),transparent 60%),var(--glass)}
+.rc.dead{opacity:.45}
+.rctop{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:10px}
+.rk{height:50px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:700;color:rgba(var(--ink-rgb),.82);transition:background .15s,transform .1s}
+.rk svg{color:var(--acc)}
+.rk:active,.rk.hit{background:rgba(var(--acc-rgb),.18);transform:scale(.97)}
+.rcmid{width:100%;display:grid;grid-template-columns:58px minmax(0,1fr) 58px;align-items:stretch;gap:12px}
+.pad{position:relative;justify-self:center;width:100%;max-width:236px;aspect-ratio:1;border-radius:50%;overflow:hidden;border:1px solid rgba(255,255,255,.14);
+  background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.10),rgba(255,255,255,.02) 62%),rgba(10,11,14,.5);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.08),inset 0 -14px 34px rgba(0,0,0,.5),0 22px 44px -22px rgba(0,0,0,.95),0 0 0 6px rgba(255,255,255,.025)}
+.pw{position:absolute;inset:0;border:0;padding:16px;background:transparent;display:flex;color:rgba(var(--ink-rgb),.72);transition:background .12s,color .12s;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.pu{clip-path:polygon(50% 50%,0 0,100% 0);align-items:flex-start;justify-content:center}
+.pd{clip-path:polygon(50% 50%,0 100%,100% 100%);align-items:flex-end;justify-content:center}
+.pl{clip-path:polygon(50% 50%,0 0,0 100%);align-items:center;justify-content:flex-start}
+.pr{clip-path:polygon(50% 50%,100% 0,100% 100%);align-items:center;justify-content:flex-end}
+.pw:active,.pw.hit{background:radial-gradient(circle at 50% 50%,transparent 28%,rgba(var(--acc-rgb),.30) 100%);color:var(--acc)}
+.pdiv{position:absolute;inset:0;pointer-events:none;background:linear-gradient(45deg,transparent calc(50% - .5px),rgba(255,255,255,.09) 50%,transparent calc(50% + .5px)),linear-gradient(-45deg,transparent calc(50% - .5px),rgba(255,255,255,.09) 50%,transparent calc(50% + .5px))}
+.pok{position:absolute;left:50%;top:50%;width:41%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;border:1px solid rgba(var(--acc-rgb),.55);
+  background:radial-gradient(circle at 40% 28%,rgba(255,255,255,.18),rgba(255,255,255,.03) 62%),#16171b;box-shadow:0 0 0 7px rgba(0,0,0,.28),0 0 26px -4px rgba(var(--acc-rgb),.55);
+  font-size:18px;font-weight:800;letter-spacing:.1em;color:var(--acc-soft);display:flex;align-items:center;justify-content:center;transition:transform .1s,background .12s;touch-action:manipulation}
+.pok:active,.pok.hit{background:linear-gradient(145deg,var(--acc),var(--acc2));color:var(--acc-ink);transform:translate(-50%,-50%) scale(.95)}
+.pad.none{display:flex;align-items:center;justify-content:center;text-align:center;padding:26px;color:rgba(var(--ink-rgb),.35)}
+.pad.none div{display:flex;flex-direction:column;align-items:center;gap:10px}
+.pad.none small{font-size:12px;font-weight:600;line-height:1.45;color:rgba(var(--ink-rgb),.6)}
+.rock{margin:8px 0;display:grid;grid-template-rows:1fr auto 1fr;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.rb{border:0;background:none;color:rgba(var(--ink-rgb),.88);display:flex;align-items:center;justify-content:center;min-height:52px;transition:background .12s,color .12s;touch-action:manipulation}
+.rb:active,.rb.hit{background:rgba(var(--acc-rgb),.2);color:var(--acc)}
+.rl{border:0;background:none;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:3px;color:rgba(var(--ink-rgb),.5)}
+.rl em{font-style:normal;font-size:10px;font-weight:800;letter-spacing:.14em}
+.rl.mut{color:#ffb0b0}
+.rcbot{display:flex;align-items:center;justify-content:center;gap:26px}
+.rcbot .round{width:54px;height:54px}
+.rcbot .big{width:64px;height:64px}
+.tvvol{padding:0 4px}
+.tvvol>svg{flex:none;color:rgba(var(--ink-rgb),.6)}
+.vn{flex:none;width:28px;text-align:right;font-size:12px;font-weight:700;color:rgba(var(--ink-rgb),.6)}
+.rcvia{margin-top:-8px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:rgba(var(--ink-rgb),.5)}
+.apps{margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px}
+.app{min-width:0;padding:12px 8px 10px;border-radius:18px;background:var(--glass);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:8px;transition:transform .1s}
+.app:active{transform:scale(.96)}
+.app.on{border-color:rgba(var(--acc-rgb),.55);box-shadow:0 0 22px -8px rgba(var(--acc-rgb),.6)}
+.ai{position:relative;width:48px;height:48px;border-radius:14px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 8px 18px -8px rgba(0,0,0,.7)}
+.ai img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.an{max-width:100%;font-size:12px;font-weight:700;color:rgba(var(--ink-rgb),.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* ---- garage doors: the door rolls up to show the garage inside ---- */
 .gds{margin-top:16px;display:flex;flex-direction:column;gap:14px}
 .gd{all:unset;box-sizing:border-box;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:100%;height:200px;border-radius:22px;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;color:#fff;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,.9);
@@ -501,7 +590,7 @@ input[type=range]:disabled{opacity:.35}
 
 // --- where the rooms come from ---------------------------------------------------------
 const arr = (v) => (Array.isArray(v) ? v : v ? [v] : []).filter((x) => typeof x === "string" && x);
-const blankRoom = (name) => ({ name, lights: [], climate: [], music: [], shades: [], scenes: [], presence: [], groups: [] });
+const blankRoom = (name) => ({ name, lights: [], climate: [], music: [], watch: [], shades: [], scenes: [], presence: [], groups: [] });
 const isManual = (cfg) => (cfg.mode ? cfg.mode === "manual" : Array.isArray(cfg.rooms) && cfg.rooms.some((r) => r && typeof r === "object"));
 const friendly = (h, id) => {
   const s = h.states[id];
@@ -655,7 +744,7 @@ function manualLayout(h, cfg) {
         .map((g, j) => ({ id: i + ":" + j, name: g.name || "Group " + (j + 1), lights: arr(g.lights) }));
       return Object.assign(blankRoom(r.name || "Room " + (i + 1)), {
         lights: uniq(arr(r.lights).concat([].concat.apply([], groups.map((g) => g.lights)))),
-        climate: arr(r.climate), music: arr(r.music), shades: arr(r.shades), scenes: arr(r.scenes), groups,
+        climate: arr(r.climate), music: arr(r.music), watch: arr(r.watch), shades: arr(r.shades), scenes: arr(r.scenes), groups,
         order: arr(r.light_order),
       });
     });
@@ -705,7 +794,12 @@ function autoLayout(h, cfg) {
         break;
       case "fan": case "water_heater": case "vacuum": case "humidifier": house.utilities.push(id); break;
       case "climate": roomFor(id).climate.push(id); break;
-      case "media_player": if (!r || (r.platform !== "spotify" && r.platform !== "spotifyplus")) roomFor(id).music.push(id); break;
+      case "media_player":
+        if (r && (r.platform === "spotify" || r.platform === "spotifyplus")) break;
+        // TVs (and Apple TV / Android TV boxes) go on Watch, with a remote
+        if (dc === "tv" || (r && TV_PLATFORMS.indexOf(r.platform) >= 0)) roomFor(id).watch.push(id);
+        else roomFor(id).music.push(id);
+        break;
       // garage-door covers get the Garage page (unless you set them up yourself)
       case "cover": if (dc === "garage") { if (!gdTaken.has(id)) house.garage.push({ entity: id, sensor: "", name: "", alert: 10 }); } else roomFor(id).shades.push(id); break;
       case "scene": roomFor(id).scenes.push(id); break;
@@ -901,7 +995,28 @@ class ArControlPanel extends HTMLElement {
       this._holdT = setTimeout(() => { this._held = true; this.more(t.getAttribute("data-hold")); }, 550);
     });
     ["pointerup", "pointercancel", "pointerleave"].forEach((n) => this.shadowRoot.addEventListener(n, stopHold));
-    this.shadowRoot.addEventListener("contextmenu", (e) => { if (e.target.closest && e.target.closest("[data-hold]")) e.preventDefault(); });
+    this.shadowRoot.addEventListener("contextmenu", (e) => { if (e.target.closest && e.target.closest("[data-hold],[data-rep]")) e.preventDefault(); });
+    // Remote HUD: hold an arrow or volume key and it keeps going.
+    this.shadowRoot.addEventListener("pointerdown", (e) => {
+      const t = e.target.closest && e.target.closest("[data-rep]");
+      if (!t) return;
+      this._repStop();
+      this._repN = 0;
+      const tv = t.getAttribute("data-e");
+      const key = t.getAttribute("data-v");
+      this._repT = setTimeout(() => {
+        this._repOn = true;
+        this._busy++; // don't redraw under the finger while it repeats
+        this._repN = 1;
+        this.tvKey(tv, key);
+        this._repI = setInterval(() => {
+          if (++this._repN > 60) return this._repStop();
+          this.tvKey(tv, key);
+        }, 160);
+      }, 450);
+    });
+    this._repEnd = () => this._repStop();
+    ["pointerup", "pointercancel"].forEach((n) => { this.shadowRoot.addEventListener(n, this._repEnd); window.addEventListener(n, this._repEnd); });
     this._loadRtc();
     this._onResize = () => this._placeDock();
     window.addEventListener("resize", this._onResize);
@@ -911,6 +1026,8 @@ class ArControlPanel extends HTMLElement {
   }
   disconnectedCallback() {
     window.removeEventListener("resize", this._onResize);
+    if (this._repEnd) ["pointerup", "pointercancel"].forEach((n) => window.removeEventListener(n, this._repEnd));
+    this._repStop();
     clearInterval(this._clockT);
     clearInterval(this._camT);
   }
@@ -1113,6 +1230,85 @@ class ArControlPanel extends HTMLElement {
       return { kind: "in", leader: via, members: all };
     }
     return null;
+  }
+  // --- Watch: a TV, its remote, and what its buttons send -----------------------------
+  // tvs: { media_player.x: { remote, kind, volume, apps, device, commands } } - all optional.
+  // The remote is found by itself (a remote.* on the same device); the kind
+  // comes from the integration (Apple TV, Android TV Remote, Samsung, LG…).
+  // A remote.* (e.g. a Broadlink IR blaster) can be a "TV" on its own too.
+  tvInfo(e) {
+    const h = this._hass;
+    const reg = h.entities || {};
+    const o = (this._config && this._config.tvs && this._config.tvs[e]) || {};
+    const isRemote = e.indexOf("remote.") === 0;
+    let remote = isRemote ? e : o.remote && this.has(o.remote) ? o.remote : null;
+    if (!remote) {
+      const dev = reg[e] && reg[e].device_id;
+      if (dev) remote = Object.keys(reg).find((k) => k.indexOf("remote.") === 0 && reg[k].device_id === dev && this.has(k)) || null;
+      if (!remote && this.has("remote." + e.split(".")[1])) remote = "remote." + e.split(".")[1];
+    }
+    const mp = isRemote ? null : e;
+    const plat = (mp && (reg[mp] || {}).platform) || "";
+    const rplat = (remote && (reg[remote] || {}).platform) || "";
+    let kind = o.kind && o.kind !== "auto" ? o.kind : TV_KINDS[rplat] ? rplat : TV_KINDS[plat] ? plat : "";
+    // ADB and webOS work without a remote entity; the others need one
+    if (kind && !TV_KINDS[kind] && kind !== "custom") kind = "";
+    const k = kind === "custom" ? { keys: o.commands || {} } : TV_KINDS[kind] || { keys: {} };
+    const via = k.via || (remote ? "remote" : "");
+    const keys = via ? Object.assign({}, k.keys) : {};
+    const vol = o.volume && this.has(o.volume) ? o.volume : mp;
+    return { e, mp, remote, kind, via, keys, device: o.device || "", volume: vol, apps: arr(o.apps), known: !!(TV_KINDS[kind] || kind === "custom") };
+  }
+  tvOn(e) {
+    const s = this.st(e);
+    return !!s && ["off", "standby", "unavailable", "unknown"].indexOf(s.state) < 0;
+  }
+  // What a TV's app buttons are: the media player's sources, or (Android TV
+  // Remote) the remote's activities. Limited / ordered by tvs.<tv>.apps.
+  tvApps(t) {
+    const ms = t.mp && this.st(t.mp);
+    const rs = t.remote && this.st(t.remote);
+    let list = ((ms && ms.attributes.source_list) || []).map((n) => ({ n, src: true }));
+    if (!list.length && rs) list = (rs.attributes.activity_list || []).map((n) => ({ n, act: true }));
+    if (t.apps.length) {
+      const have = new Map(list.map((x) => [x.n.toLowerCase(), x]));
+      list = t.apps.map((n) => have.get(String(n).toLowerCase()) || (rs && rs.attributes.activity_list ? { n, act: true } : t.mp ? { n, src: true } : null)).filter(Boolean);
+    }
+    return list;
+  }
+  tvKey(e, key) {
+    const t = this.tvInfo(e);
+    const feat = (x) => { const s = x && this.st(x); return s ? s.attributes.supported_features || 0 : 0; };
+    const vf = feat(t.volume);
+    const mf = feat(t.mp);
+    const ms = t.mp && this.st(t.mp);
+    if (navigator.vibrate) try { navigator.vibrate(8); } catch (err) { /* not allowed */ }
+    if ((key === "vol_up" || key === "vol_down") && t.volume && (vf & 1024 || vf & 4)) return this.call("media_player", key === "vol_up" ? "volume_up" : "volume_down", { entity_id: t.volume });
+    if (key === "mute" && t.volume && vf & 8) return this.call("media_player", "volume_mute", { entity_id: t.volume, is_volume_muted: !this.st(t.volume).attributes.is_volume_muted });
+    if (key === "power") {
+      const on = this.tvOn(e);
+      if (t.mp && (on ? mf & 256 : mf & 128)) return this.call("media_player", on ? "turn_off" : "turn_on", { entity_id: t.mp });
+      if (t.keys.power) return this.tvSend(t, t.keys.power);
+      if (t.remote) return this.call("remote", on ? "turn_off" : "turn_on", { entity_id: t.remote });
+      return this._say("This TV can't be switched on or off from here");
+    }
+    if (key === "play_pause" && t.mp && mf & (1 | 16384) && ms && ms.state !== "off") return this.call("media_player", "media_play_pause", { entity_id: t.mp });
+    if (key === "prev" || key === "next") return t.mp ? this.call("media_player", key === "prev" ? "media_previous_track" : "media_next_track", { entity_id: t.mp }) : null;
+    const cmd = t.keys[key];
+    if (!cmd) return this._say(t.remote || t.via ? "No " + (TV_KEY_NAME[key] || key) + " button for this TV" : "Pick this TV's remote in the card settings (Watch)");
+    return this.tvSend(t, cmd);
+  }
+  tvSend(t, cmd) {
+    if (t.via === "webos") return this.call("webostv", "button", { entity_id: t.mp, button: cmd });
+    if (t.via === "adb") return this.call("androidtv", "adb_command", { entity_id: t.mp, command: cmd });
+    const data = { entity_id: t.remote, command: cmd };
+    if (t.device) data.device = t.device;
+    return this.call("remote", "send_command", data);
+  }
+  _repStop() {
+    clearTimeout(this._repT);
+    clearInterval(this._repI);
+    if (this._repOn) { this._repOn = false; this._busy = Math.max(0, this._busy - 1); this._schedule(); }
   }
   canGroup(e) {
     const s = this.st(e);
@@ -1487,6 +1683,14 @@ class ArControlPanel extends HTMLElement {
       const n = g ? g.members.length - (g.kind === "group" ? 0 : 1) : 0;
       return { s: "Playing · " + this.name(p) + (n > 0 ? ` + ${n} grouped` : ""), lit: true };
     }
+    if (cat === "watch") {
+      const on = es.filter((e) => this.tvOn(e));
+      if (!on.length) return { s: es.length === 1 ? "Off" : "All off" };
+      const p = on.find((e) => this.st(e).state === "playing") || on[0];
+      const a = this.st(p).attributes;
+      const app = a.app_name || a.source;
+      return { s: (this.st(p).state === "playing" ? "Playing · " : "On · ") + this.name(p) + (app ? " · " + app : ""), lit: true };
+    }
     if (cat === "shades") {
       const n = es.filter((e) => this.isOn(e)).length;
       return { s: n ? `${n} open` : "All closed" };
@@ -1543,7 +1747,7 @@ class ArControlPanel extends HTMLElement {
       case "room": {
         this._sheet = null;
         this._lib = null;
-        const patch = { room: Number(v), mus: null, clim: 0 };
+        const patch = { room: Number(v), mus: null, clim: 0, tv: null };
         // Setting "Changing room goes to its Home page": a new room starts on Home.
         if (this._config && this._config.room_home && Number(v) !== this._s.room) patch.tab = "home";
         this._set(patch);
@@ -1611,6 +1815,24 @@ class ArControlPanel extends HTMLElement {
       case "hvac": this.call("climate", "set_hvac_mode", { entity_id: e, hvac_mode: v }); break;
       case "fan": this.call("climate", "set_fan_mode", { entity_id: e, fan_mode: v }); break;
       case "mus": this._lib = null; this._set({ mus: Number(v) }); break;
+      // --- Watch: the remote HUD
+      case "tvsel": this._set({ tv: Number(v) }); break;
+      case "rc": {
+        if (this._repN > 0) { this._repN = 0; break; } // that was a hold: it already repeated
+        this.tvKey(e, v);
+        b.classList.add("hit");
+        setTimeout(() => b.classList.remove("hit"), 180);
+        break;
+      }
+      case "tvapp": {
+        const app = (this._tvApps || [])[Number(v)];
+        if (!app) break;
+        const t = this.tvInfo(e);
+        if (app.act && t.remote) this.call("remote", "turn_on", { entity_id: t.remote, activity: app.n });
+        else if (t.mp) this.call("media_player", "select_source", { entity_id: t.mp, source: app.n });
+        this._say("Opening " + app.n);
+        break;
+      }
       case "mview": this._set({ mview: v }); if (v === "lib" && !this._lib) this._browse(e, null); break;
       case "spv": this._sp.res = null; this._sp.q = ""; this.spLoad(v); break;
       case "spf": this._sp.filter = v; this._schedule(true); break;
@@ -1735,6 +1957,7 @@ class ArControlPanel extends HTMLElement {
       return;
     }
     if (t.type === "range") t.style.setProperty("--p", ((t.value - t.min) / (t.max - t.min)) * 100 + "%");
+    if (ia === "vol" && t.nextElementSibling && t.nextElementSibling.classList.contains("vn")) t.nextElementSibling.textContent = t.value;
   }
   _change(ev) {
     const t = ev.target;
@@ -2070,6 +2293,90 @@ class ArControlPanel extends HTMLElement {
       </div>
       ${vol != null ? `<div class="vol">${svg("music", 18)}<input type="range" min="0" max="100" value="${vol}" data-a="vol" data-e="${esc(e)}" aria-label="Volume"><button class="iconbtn" data-a="media" data-e="${esc(e)}" data-v="power" aria-label="Power">${svg("power", 18)}</button></div>` : ""}
     </div>`;
+  }
+
+  // Watch: pick a TV, see what's on, and a remote HUD to drive it.
+  _watch() {
+    const es = this.ents("watch");
+    if (!es.length) return "";
+    // until a TV is picked: the one that's playing, else one that's on
+    const pIdx = es.findIndex((x) => this.st(x).state === "playing");
+    const onIdx = pIdx >= 0 ? pIdx : Math.max(0, es.findIndex((x) => this.tvOn(x)));
+    const i = clamp(this._s.tv == null ? onIdx : this._s.tv, 0, es.length - 1);
+    const e = es[i];
+    const s = this.st(e);
+    const a = s.attributes;
+    const t = this.tvInfo(e);
+    const on = this.tvOn(e);
+    const dead = s.state === "unavailable";
+    const E = esc(e);
+    const tabs = es.length > 1 ? `<div class="tabs">${es.map((x, k) => `<button class="tab ${k === i ? "on" : ""}" data-a="tvsel" data-v="${k}">${this.tvOn(x) ? '<i class="tvdot"></i>' : ""}${esc(this.name(x))}</button>`).join("")}</div>` : "";
+    // what's on
+    const app = a.app_name || a.source || "";
+    const title = !on ? (dead ? "Unavailable" : "Off") : a.media_title || app || (s.state === "idle" ? "Home screen" : "On");
+    const sub = on ? [a.media_series_title || a.media_artist, a.media_title ? app : "", this.name(e)].filter(Boolean).join(" · ") : this.name(e);
+    const pic = on && a.entity_picture ? `<img src="${esc(a.entity_picture)}" alt="">` : svg("tv", 30, ' stroke-width="1.5"');
+    const now = `<div class="glass tvnow ${on ? "on" : ""}"><div class="tvart">${pic}${on ? `<i class="tvlive">${s.state === "playing" ? "PLAYING" : s.state === "paused" ? "PAUSED" : "ON"}</i>` : ""}</div>
+      <div class="tvt"><b>${esc(title)}</b><small>${esc(sub)}</small></div>
+      <button class="tvpow ${on ? "on" : ""}" data-a="rc" data-e="${E}" data-v="power" aria-label="${on ? "Turn off" : "Turn on"} ${esc(this.name(e))}"${dead ? " disabled" : ""}>${svg("power", 22)}</button></div>`;
+    // the remote
+    const K = t.keys;
+    const vs = t.volume && this.st(t.volume);
+    const vf = vs ? vs.attributes.supported_features || 0 : 0;
+    const hasVol = !!(vf & 1024 || vf & 4 || K.vol_up);
+    const hasMute = !!(vf & 8 || K.mute);
+    const muted = !!(vs && vs.attributes.is_volume_muted);
+    const hasCh = !!K.ch_up;
+    const mf = t.mp ? this.st(t.mp).attributes.supported_features || 0 : 0;
+    const key = (k, cls, icon, label, rep, size) => `<button class="${cls}" data-a="rc" data-e="${E}" data-v="${k}"${rep ? " data-rep" : ""} aria-label="${esc(label)}">${icon}</button>`;
+    const small = (k, icon, label) => K[k] ? `<button class="rk" data-a="rc" data-e="${E}" data-v="${k}" aria-label="${esc(label)}">${svg(icon, 20)}<span>${esc(label)}</span></button>` : "";
+    const top = [small("back", "undo", "Back"), small("home", "home", "Home"), small("menu", "dots", "Menu")].join("");
+    const pad = K.up
+      ? `<div class="pad" role="group" aria-label="Arrow keys">
+          ${key("up", "pw pu", svg("up", 26, ' stroke-width="2.4"'), "Up", true)}
+          ${key("right", "pw pr", svg("right", 26, ' stroke-width="2.4"'), "Right", true)}
+          ${key("down", "pw pd", svg("down", 26, ' stroke-width="2.4"'), "Down", true)}
+          ${key("left", "pw pl", svg("left", 26, ' stroke-width="2.4"'), "Left", true)}
+          <i class="pdiv" aria-hidden="true"></i>
+          ${key("ok", "pok", "<span>OK</span>", "OK")}
+        </div>`
+      : `<div class="pad none"><div>${svg("tv", 34, ' stroke-width="1.4"')}<small>${t.remote || t.via ? "Arrow keys need the remote type.<br>Set it in the card settings › Watch." : "No remote found for this TV.<br>Pick it in the card settings › Watch."}</small></div></div>`;
+    const volRock = hasVol || hasMute ? `<div class="rock">
+        ${hasVol ? key("vol_up", "rb", svg("plus", 22), "Volume up", true) : "<span></span>"}
+        ${hasMute ? key("mute", "rl" + (muted ? " mut" : ""), svg(muted ? "mute" : "vol", 18) + "<em>" + (muted ? "MUTED" : "VOL") + "</em>", muted ? "Unmute" : "Mute") : `<span class="rl">${svg("vol", 18)}<em>VOL</em></span>`}
+        ${hasVol ? key("vol_down", "rb", svg("minus", 22), "Volume down", true) : "<span></span>"}
+      </div>` : "";
+    const chRock = hasCh ? `<div class="rock">
+        ${key("ch_up", "rb", svg("up", 22), "Channel up", true)}
+        <span class="rl"><em>CH</em></span>
+        ${key("ch_down", "rb", svg("down", 22), "Channel down", true)}
+      </div>` : "";
+    const canPlay = (t.mp && mf & (1 | 16384)) || K.play_pause;
+    const playing = s.state === "playing";
+    const trans = canPlay || (t.mp && mf & (16 | 32)) ? `<div class="rcbot">
+        ${t.mp && mf & 16 ? key("prev", "round", svg("prev", 20), "Previous") : ""}
+        ${canPlay ? key("play_pause", "big", svg(playing ? "pause" : "play", 28, ' fill="currentColor" stroke-width="0"'), playing ? "Pause" : "Play") : ""}
+        ${t.mp && mf & 32 ? key("next", "round", svg("next", 20), "Next") : ""}
+      </div>` : "";
+    const vol = vs && vs.attributes.volume_level != null && vf & 4
+      ? `<div class="vol tvvol">${svg("vol", 18)}<input type="range" min="0" max="100" value="${Math.round(vs.attributes.volume_level * 100)}" data-a="vol" data-e="${esc(t.volume)}" aria-label="Volume"><span class="vn">${Math.round(vs.attributes.volume_level * 100)}</span></div>`
+      : "";
+    const hud = `<div class="glass rc${dead ? " dead" : ""}">
+      ${top ? `<div class="rctop">${top}</div>` : ""}
+      <div class="rcmid">${volRock || "<span></span>"}${pad}${chRock || "<span></span>"}</div>
+      ${trans}${vol}
+      ${t.volume !== t.mp && t.volume ? `<div class="rcvia">${svg("speaker", 13)} Volume on ${esc(this.name(t.volume))}</div>` : ""}
+    </div>`;
+    // app shortcuts
+    const apps = (this._tvApps = this.tvApps(t));
+    const imgs = (this._config && this._config.app_images) || {};
+    const cur = String(app).toLowerCase();
+    const appRow = apps.length ? `<div class="sh">Apps &amp; inputs</div><div class="apps">${apps.map((x, k) => {
+      const col = (APP_COLORS.find(([re]) => re.test(x.n)) || [0, "rgba(var(--acc-rgb),.55)"])[1];
+      const img = imgs[x.n];
+      return `<button class="app ${cur && cur === x.n.toLowerCase() ? "on" : ""}" data-a="tvapp" data-e="${E}" data-v="${k}"><span class="ai" style="background:${col}">${img ? `<img src="${esc(img)}" alt="">` : esc(x.n.replace(/[^A-Za-z0-9+]/g, "").slice(0, 1).toUpperCase() || "•")}</span><span class="an">${esc(x.n)}</span></button>`;
+    }).join("")}</div>` : "";
+    return tabs + now + hud + appRow;
   }
 
   // Spotify on the Music page: plays on the amp picked above (Spotify Connect).
@@ -2476,6 +2783,13 @@ const LABELS = {
   lights: "Lights",
   climate: "Climate (AC, heating)",
   music: "Music (speakers / media players)",
+  watch: "Watch (TVs, Apple TV, Android TV, Firesticks, IR remotes)",
+  tv_name: "Name on the card (optional)",
+  tv_remote: "Its remote (leave empty and it's found by itself)",
+  tv_kind: "Type of remote",
+  tv_volume: "Volume goes to (optional: an amp or soundbar)",
+  tv_apps: "App buttons (leave empty for all the TV's apps and inputs)",
+  tv_device: "Device name in the remote (Broadlink: the name you learned the codes under)",
   shades: "Shades, blinds, curtains, gates",
   scenes: "Scenes and scripts (buttons on the Home page)",
   cameras: "Cameras",
@@ -2496,7 +2810,18 @@ const LABELS = {
   background_custom: "Your own background colour",
 };
 const SPK_SCHEMA = [{ name: "speakers", selector: ENT(["media_player"]) }];
-const ED_TABS = [["general", "General"], ["rooms", "Rooms"], ["house", "Whole house"], ["music", "Music"], ["garage", "Garage"], ["cameras", "Cameras"]];
+const ED_TABS = [["general", "General"], ["rooms", "Rooms"], ["house", "Whole house"], ["music", "Music"], ["watch", "Watch"], ["garage", "Garage"], ["cameras", "Cameras"]];
+TV_KEYS.forEach((k) => (LABELS["cmd_" + k] = TV_KEY_NAME[k] + " — command"));
+// Watch tab: one box per TV. "My own commands" adds a text box per button.
+const tvSchema = (custom, sources) => [
+  { name: "tv_name", selector: { text: {} } },
+  { name: "tv_remote", selector: { entity: { filter: { domain: ["remote"] } } } },
+  { name: "tv_kind", selector: { select: { mode: "dropdown", options: [{ value: "auto", label: "Find it by itself" }]
+    .concat(Object.keys(TV_KINDS).map((k) => ({ value: k, label: TV_KINDS[k].name })))
+    .concat([{ value: "custom", label: "My own commands (Broadlink / IR / other)" }]) } } },
+  { name: "tv_volume", selector: { entity: { filter: { domain: ["media_player"] } } } },
+  { name: "tv_apps", selector: { select: { multiple: true, custom_value: true, mode: "dropdown", options: sources.map((n) => ({ value: n, label: n })) } } },
+].concat(custom ? [{ name: "tv_device", selector: { text: {} } }].concat(TV_KEYS.map((k) => ({ name: "cmd_" + k, selector: { text: {} } }))) : []);
 const SP_SCHEMA = [
   { name: "sp_on", selector: { boolean: {} } },
   { name: "sp_entity", selector: { entity: { filter: { domain: ["media_player"] } } } },
@@ -2538,6 +2863,7 @@ const ROOM_SCHEMA = [
   { name: "lights", selector: ENT(["light", "switch", "input_boolean"]) },
   { name: "climate", selector: ENT(["climate"]) },
   { name: "music", selector: ENT(["media_player"]) },
+  { name: "watch", selector: ENT(["media_player", "remote"]) },
   { name: "shades", selector: ENT(["cover"]) },
   { name: "scenes", selector: ENT(["scene", "script"]) },
 ];
@@ -2547,7 +2873,7 @@ const HOUSE_SCHEMA = [
   { name: "utilities", selector: ENT(["switch", "fan", "water_heater", "input_boolean", "vacuum", "humidifier"]) },
   { name: "whole_house", selector: { boolean: {} } },
 ];
-const ROOM_FIELDS = ["lights", "climate", "music", "shades", "scenes"];
+const ROOM_FIELDS = ["lights", "climate", "music", "watch", "shades", "scenes"];
 const LGROUP_SCHEMA = [
   { name: "name", selector: { text: {} } },
   { name: "group_lights", selector: ENT(["light", "switch", "input_boolean"]) },
@@ -2670,20 +2996,32 @@ class ArControlPanelCardEditor extends HTMLElement {
   _doors() { return Array.isArray(this._cfg.garage) ? this._cfg.garage.map((d) => (typeof d === "string" ? { entity: d } : d)).filter((d) => d && typeof d === "object") : []; }
   _streams() { return Array.isArray(this._cfg.rtsp) ? this._cfg.rtsp.filter((r) => r && typeof r === "object") : []; }
   _lgs(i) { const r = this._rooms()[i] || {}; return (Array.isArray(r.light_groups) ? r.light_groups : []).filter((g) => g && typeof g === "object"); }
-  _shapeOf() { const th = this._data("theme"); return th.accent + th.background + ":" + this._tab + ":" + this._ri + ":" + this._wholeOn() + ":" + this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().map((r, i) => this._lgs(i).length).join(",") + "/" + this._rooms().length : 0) + ":" + this._streams().length + ":" + this._doors().length + ":" + this._amps().join(","); }
+  _shapeOf() { const th = this._data("theme"); return th.accent + th.background + ":" + this._tab + ":" + this._ri + ":" + this._wholeOn() + ":" + this._cfg.mode + ":" + (this._cfg.mode === "manual" ? this._rooms().map((r, i) => this._lgs(i).length).join(",") + "/" + this._rooms().length : 0) + ":" + this._streams().length + ":" + this._doors().length + ":" + this._amps().join(",") + ":" + (this._tab === "watch" ? this._tvs().map((e) => e + "=" + this._tvKind(e)).join(",") : ""); }
 
-  // The lights that can be renamed: a room's lights and its groups' lights
-  // ("nm:3"), or in automatic mode every light the card found ("nm:auto").
+  // Rename boxes: lights ("nm:3" a room's lights and its groups' lights,
+  // "nm:auto" every light in automatic mode) and ACs ("nc:3", "nc:auto").
+  _isNameKey(k) { return /^n[mc]:/.test(k); }
   _nameIds(key) {
-    if (key === "nm:auto") {
+    const field = key.indexOf("nc:") === 0 ? "climate" : "lights";
+    if (key.slice(3) === "auto") {
       const h = this._hass;
       if (!h || !h.states) return [];
       const L = autoLayout(h, this._cfg);
-      return uniq([].concat.apply([], L.rooms.map((r) => r.lights)));
+      return uniq([].concat.apply([], L.rooms.map((r) => r[field])));
     }
     const r = this._rooms()[Number(key.slice(3))] || {};
+    if (field === "climate") return uniq(arr(r.climate));
     return uniq(arr(r.lights).concat([].concat.apply([], this._lgs(Number(key.slice(3))).map((g) => arr(g.lights)))));
   }
+  // Watch tab: every TV on the card, and how each one's set up.
+  _tvs() {
+    const h = this._hass;
+    if (!h || !h.states) return [];
+    const rooms = this._cfg.mode === "manual" ? this._rooms().map((r) => ({ watch: arr(r.watch) })) : autoLayout(h, this._cfg).rooms;
+    return uniq([].concat.apply([], rooms.map((r) => r.watch || []))).filter((e) => h.states[e]);
+  }
+  _tvCfg(e) { const t = this._cfg.tvs; return (t && typeof t === "object" && t[e] && typeof t[e] === "object") ? t[e] : {}; }
+  _tvKind(e) { return this._tvCfg(e).kind || "auto"; }
   _nameSchema(key) { return this._nameIds(key).map((e) => ({ name: e, selector: { text: {} } })); }
   _nameData(key) {
     const n = this._cfg.names || {};
@@ -2696,7 +3034,8 @@ class ArControlPanelCardEditor extends HTMLElement {
     box.className = "names";
     box.setAttribute("data-fold", key);
     box.open = !!this._folds[key];
-    box.innerHTML = `<summary>✏️ Rename lights (optional)</summary><p class="hint"></p>`;
+    const ac = key.indexOf("nc:") === 0;
+    box.innerHTML = `<summary>${ac ? "✏️ Rename ACs (optional)" : "✏️ Rename lights (optional)"}</summary><p class="hint"></p>`;
     box.querySelector("p").textContent = NAME_HINT;
     const f = this._form(key, this._nameSchema(key), this._nameData(key));
     f.computeLabel = (s) => (this._hass ? friendly(this._hass, s.name) : s.name);
@@ -2704,7 +3043,7 @@ class ArControlPanelCardEditor extends HTMLElement {
     box.appendChild(f);
     const none = document.createElement("p");
     none.className = "hint none";
-    none.textContent = "Pick some lights above first.";
+    none.textContent = ac ? (key === "nc:auto" ? "No ACs found in your areas yet." : "Pick some ACs (Climate) above first.") : "Pick some lights above first.";
     box.appendChild(none);
     none.hidden = this._nameIds(key).length > 0;
     return box;
@@ -2979,6 +3318,14 @@ class ArControlPanelCardEditor extends HTMLElement {
       const r = this._streams()[Number(key.slice(5))] || {};
       return { name: r.name || "", url: r.url || "" };
     }
+    if (key.indexOf("tv:") === 0) {
+      const e = key.slice(3);
+      const o = this._tvCfg(e);
+      const n = c.names && c.names[e];
+      const d = { tv_name: typeof n === "string" ? n : "", tv_remote: o.remote || "", tv_kind: o.kind || "auto", tv_volume: o.volume || "", tv_apps: arr(o.apps), tv_device: o.device || "" };
+      TV_KEYS.forEach((k) => (d["cmd_" + k] = (o.commands && typeof o.commands[k] === "string" && o.commands[k]) || ""));
+      return d;
+    }
     const r = this._rooms()[Number(key.slice(5))] || {};
     const d = { name: r.name || "" };
     ROOM_FIELDS.forEach((k) => (d[k] = arr(r[k])));
@@ -2987,8 +3334,8 @@ class ArControlPanelCardEditor extends HTMLElement {
   _feed() {
     this.shadowRoot.querySelectorAll("ha-form").forEach((f) => {
       const k = f.getAttribute("data-k");
-      if (k.indexOf("nm:") === 0) {
-        // the list of lights may have changed: give the rename box its new rows
+      if (this._isNameKey(k)) {
+        // the list of lights / ACs may have changed: give the rename box its new rows
         const ids = this._nameIds(k);
         if (ids.join() !== f.schema.map((s) => s.name).join()) f.schema = this._nameSchema(k);
         f.data = this._nameData(k);
@@ -3000,9 +3347,10 @@ class ArControlPanelCardEditor extends HTMLElement {
     });
     this.shadowRoot.querySelectorAll("ha-form").forEach((f) => {
       const k = f.getAttribute("data-k");
-      if (k.indexOf("nm:") === 0) return;
+      if (this._isNameKey(k)) return;
       const b = f.parentNode && f.parentNode.classList && f.parentNode.classList.contains("room") ? f.parentNode.querySelector(".rhead b") : null;
       if (!b) return;
+      if (k.indexOf("tv:") === 0) { b.textContent = "📺 " + this._nm(k.slice(3)); return; }
       const i = Number(k.split(":")[1]);
       if (k.indexOf("gd:") === 0) {
         const d = this._doors()[i] || {};
@@ -3028,7 +3376,34 @@ class ArControlPanelCardEditor extends HTMLElement {
 
   _changed(key, v) {
     const c = this._cfg;
-    if (key.indexOf("nm:") === 0) {
+    if (key.indexOf("tv:") === 0) {
+      const e = key.slice(3);
+      const names = Object.assign({}, c.names);
+      if (typeof v.tv_name === "string" && v.tv_name.trim()) names[e] = v.tv_name; else delete names[e];
+      if (Object.keys(names).length) c.names = names; else delete c.names;
+      const o = {};
+      if (v.tv_remote) o.remote = v.tv_remote;
+      if (v.tv_kind && v.tv_kind !== "auto") o.kind = v.tv_kind;
+      if (v.tv_volume) o.volume = v.tv_volume;
+      if (arr(v.tv_apps).length) o.apps = arr(v.tv_apps);
+      if (o.kind === "custom") {
+        if (v.tv_device && v.tv_device.trim()) o.device = v.tv_device.trim();
+        const cm = {};
+        TV_KEYS.forEach((k) => { const x = v["cmd_" + k]; if (typeof x === "string" && x.trim()) cm[k] = x.trim(); });
+        if (Object.keys(cm).length) o.commands = cm;
+      } else {
+        // keep commands typed earlier, in case they switch back
+        const old = this._tvCfg(e);
+        if (old.commands) o.commands = old.commands;
+        if (old.device) o.device = old.device;
+      }
+      const tvs = Object.assign({}, c.tvs && typeof c.tvs === "object" ? c.tvs : {});
+      if (Object.keys(o).length) tvs[e] = o; else delete tvs[e];
+      if (Object.keys(tvs).length) c.tvs = tvs; else delete c.tvs;
+      this._emit();
+      return;
+    }
+    if (this._isNameKey(key)) {
       const names = Object.assign({}, c.names);
       this._nameIds(key).forEach((e) => {
         const t = typeof v[e] === "string" ? v[e] : "";
@@ -3233,6 +3608,38 @@ class ArControlPanelCardEditor extends HTMLElement {
     root.querySelector('[data-add="gd"]').addEventListener("click", () => this._door("add"));
   }
 
+  _watchSection(root, add, manual) {
+    add(`<div class="sec">TVs and remotes</div>`);
+    add(`<p class="hint">${manual ? "Add TVs to a room on the <b>Rooms</b> tab (Watch). " : "TVs, Apple TVs and Android TV boxes in your areas are found by themselves. "}Each one gets a Watch page with a remote. The remote is found by itself for Apple TV, Android TV / Google TV, Fire TV (ADB), Samsung, LG, Sony, Philips and Roku. For a Broadlink or other IR blaster, add the remote itself as a TV and choose “My own commands”.</p>`);
+    const h = this._hass;
+    const reg = (h && h.entities) || {};
+    const tvs = this._tvs();
+    if (!tvs.length) { add(`<p class="hint"><b>No TVs on the card yet.</b></p>`); return; }
+    tvs.forEach((e) => {
+      const box = document.createElement("div");
+      box.className = "room";
+      box.innerHTML = `<div class="rhead"><b></b></div>`;
+      box.querySelector("b").textContent = "📺 " + this._nm(e);
+      const st = h.states[e];
+      const sources = uniq(((st && st.attributes.source_list) || []).concat(arr(this._tvCfg(e).apps)));
+      const f = this._form("tv:" + e, tvSchema(this._tvKind(e) === "custom", sources), this._data("tv:" + e));
+      // say what was found by itself
+      const dev = reg[e] && reg[e].device_id;
+      const found = e.indexOf("remote.") === 0 ? e : (dev && Object.keys(reg).find((k) => k.indexOf("remote.") === 0 && reg[k].device_id === dev)) || "";
+      const plat = (found && (reg[found] || {}).platform) || (reg[e] || {}).platform || "";
+      f.computeHelper = (s) => {
+        if (s.name === "tv_name") return e;
+        if (s.name === "tv_remote") return found ? "Found: " + friendly(h, found) + " (" + found + ")" : TV_KINDS[plat] && TV_KINDS[plat].via ? "Not needed: " + TV_KINDS[plat].name + " works through the TV itself" : "None found";
+        if (s.name === "tv_kind") return TV_KINDS[plat] ? "Found: " + TV_KINDS[plat].name : "";
+        if (s.name === "tv_apps") return sources.length ? "" : "Turn the TV on to see its apps here, or type the names";
+        if (s.name.indexOf("cmd_") === 0 && s.name === "cmd_up") return "What to send for each button, e.g. a Broadlink learned command name";
+        return "";
+      };
+      box.appendChild(f);
+      root.appendChild(box);
+    });
+  }
+
   _camSection(root, add) {
     add(`<div class="sec">RTSP cameras</div>`);
     add(`<p class="hint">Cameras that aren't in Home Assistant. Paste the RTSP link (rtsp://user:pass@ip:554/...) or, to keep the password out of the dashboard, the name of a stream you've set up in WebRTC / go2rtc.</p>`);
@@ -3297,6 +3704,7 @@ class ArControlPanelCardEditor extends HTMLElement {
       lo.insertAdjacentHTML("beforeend", `<p class="hint">Drag ⠿ to move a light or light group up or down in its room.</p><div data-autolights></div>`);
       root.appendChild(lo);
       root.appendChild(this._nameBox("nm:auto"));
+      root.appendChild(this._nameBox("nc:auto"));
     }
 
     if (tab === "rooms" && manual) {
@@ -3369,6 +3777,7 @@ class ArControlPanelCardEditor extends HTMLElement {
         of.appendChild(this._sortList("lo:" + i));
         box.appendChild(of);
         box.appendChild(this._nameBox("nm:" + i));
+        box.appendChild(this._nameBox("nc:" + i));
         root.appendChild(box);
       } else add(`<p class="hint">No rooms yet. Tap + Room.</p>`);
     }
@@ -3386,6 +3795,7 @@ class ArControlPanelCardEditor extends HTMLElement {
       root.appendChild(this._form("spk", SPK_SCHEMA, this._data("spk")));
       this._spSection(root, add);
     }
+    if (tab === "watch") this._watchSection(root, add, manual);
     if (tab === "garage") this._garageSection(root, add);
     if (tab === "cameras") this._camSection(root, add);
     this._refreshSorts();

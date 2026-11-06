@@ -1,7 +1,7 @@
 # AR Control Panel
 
 A Home Assistant dashboard card for your phone, in the AR Elegant style.
-It shows your home as rooms: Home, Lights, Climate, Music (with a Library), Cameras, Security, Shades and Utilities.
+It shows your home as rooms: Home, Lights, Climate, Music (with a Library), Watch (TVs with a remote), Cameras, Security, Shades and Utilities.
 
 **No wall panel needed.** The rooms come straight from Home Assistant's own **areas**, so anything you've already set up in Home Assistant just appears.
 
@@ -34,7 +34,7 @@ views:
 
 ## Pick your own rooms and entities
 
-Open the dashboard > pencil (Edit) > click the card > **Edit**. The settings are in tabs: **General · Rooms · Whole house · Music · Garage · Cameras**. Everything is picked from dropdowns of your Home Assistant entities.
+Open the dashboard > pencil (Edit) > click the card > **Edit**. The settings are in tabs: **General · Rooms · Whole house · Music · Watch · Garage · Cameras**. Everything is picked from dropdowns of your Home Assistant entities.
 
 1. **General** > **Where the rooms come from** > choose **I pick my own rooms and entities**. The card starts you off with what it found in your areas, so you only change what's wrong.
 2. **Rooms:** each room has its own tab. Tap a room to see only that room, then set its **name**, **Lights**, **Climate**, **Music**, **Shades** and **Scenes**. Under those are **Light groups**, **Order of lights** and **Rename lights**.
@@ -207,6 +207,63 @@ spotify:
   devices:                                  # optional, when the names differ
     media_player.lounge_amp: Lounge WiiM
 # spotify: false                            # hide the Spotify tab
+```
+
+## Watch: TVs with a remote
+
+Add TVs to a room and a **Watch** page appears in the bottom bar, in that room and on Whole house. Each TV gets:
+
+- **What's on:** the show or app, with its picture, and a power button.
+- **A remote:** Back · Home · Menu, a round arrow pad with **OK**, a **VOL** rocker (+, mute, −) and, for TVs with channels, a **CH** rocker. Hold an arrow or volume key and it keeps going.
+- **Play / pause, previous, next** and a volume slider, when the TV has them.
+- **Apps & inputs:** a button for each app and input (Netflix, YouTube, DStv, HDMI 1…). Tap one to open it.
+
+The remote is found by itself (the `remote.*` on the same device) for **Apple TV**, **Android TV / Google TV** (Android TV Remote), **Fire TV / Android (ADB)**, **Samsung**, **LG webOS**, **Sony Bravia**, **Philips** and **Roku**.
+
+In the editor:
+
+1. **Rooms** > a room > **Watch**: pick its TVs. In automatic mode, TVs, Apple TVs and Android TV boxes in your areas go on Watch by themselves (instead of Music).
+2. **Watch** tab, for each TV (all optional):
+   - **Name on the card**
+   - **Its remote**, if the card didn't find it
+   - **Type of remote**, if it guessed wrong
+   - **Volume goes to:** an amp or soundbar, so VOL and mute work the amp instead of the TV
+   - **App buttons:** only these, in this order
+
+**Broadlink or other IR blaster:** add the `remote.*` itself to a room's Watch, then on the Watch tab choose **My own commands** and type what each button sends (the learned command names), plus the **device name** you learned them under.
+
+YAML:
+
+```yaml
+rooms:
+  - name: Lounge
+    watch: [media_player.lounge_apple_tv, media_player.samsung_tv, remote.lounge_broadlink]
+tvs:
+  media_player.samsung_tv:
+    volume: media_player.lounge_amp       # VOL goes to the amp
+    apps: [TV, HDMI 1, Netflix, YouTube]
+  media_player.lounge_apple_tv:
+    remote: remote.lounge_apple_tv        # found by itself; only if it isn't
+    kind: apple_tv                        # apple_tv, androidtv_remote, androidtv, samsungtv,
+                                          # webostv, braviatv, philips_js, roku, custom
+  remote.lounge_broadlink:
+    kind: custom
+    device: lounge_tv
+    commands: { up: up, down: down, left: left, right: right, ok: ok, back: back,
+                vol_up: vol_up, vol_down: vol_down, mute: mute, power: power }
+names:
+  media_player.samsung_tv: Lounge TV
+app_images:                               # optional: your own app logos
+  Netflix: /local/apps/netflix.png
+```
+
+## Rename ACs
+
+Like lights, an AC can show with a different name from the one it has in Home Assistant (e.g. *Midea 1* → *Lounge Aircon*). In the editor, inside a room, open **✏️ Rename ACs (optional)** (in automatic mode it's on the Rooms tab). The names show on the Climate tabs. In YAML it's the same `names:` list:
+
+```yaml
+names:
+  climate.midea_1: Lounge Aircon
 ```
 
 ## Garage doors
